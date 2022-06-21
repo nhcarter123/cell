@@ -1,165 +1,97 @@
-import GameScene, { EImageKey } from "./gameScene";
-import { screenHeight } from "../config";
+import GameScene, { RADIUS, SPACING } from "./gameScene";
+import { Organism } from "../objects/organism";
+import { BrainCell } from "../objects/cells/brainCell";
+import { EDITOR_WIDTH, ESceneKey } from "../index";
+import { lerp } from "../helpers/math";
+import { Vector } from "matter";
 
-enum ETabId {
-  Body = "Body",
-  Mouth = "Mouth",
-  Defense = "Defense",
-}
-
-enum EBodyCell {
-  BodyCell = "BodyCell",
-}
-
-enum EMouthCell {
-  MouthCell = "MouthCell",
-}
-
-enum EDefenseCell {
-  BrainCell = "BrainCell",
-}
-
-type TShopCell = EBodyCell | EMouthCell | EDefenseCell;
-
-interface IShopCell {
-  type: TShopCell;
-  tier: number;
-  image?: Phaser.GameObjects.Image;
-}
-
-interface ITab {
-  id: ETabId;
-  image: Phaser.GameObjects.Image;
-  background: Phaser.GameObjects.Rectangle;
-  contents: IShopCell[];
-}
-
-const defaultTabColor = Phaser.Display.Color.ValueToColor("#727272").color;
-const hoveredTabColor = Phaser.Display.Color.ValueToColor("#b1b1b1").color;
-const selectedTabColor = Phaser.Display.Color.ValueToColor("#3e3e3e").color;
+const availableSpotColor = Phaser.Display.Color.ValueToColor("#dedede").color;
 
 export default class Editor extends GameScene {
-  private panel?: Phaser.GameObjects.Rectangle;
-  private readonly panelWidth: number;
-  private currentTabId: ETabId;
-  private tabs: ITab[];
+  private organism: Organism;
+  private zoom: number;
+  private availableSpots: Vector[];
+  private availableSpotGraphics?: Phaser.GameObjects.Graphics;
 
   constructor() {
-    super("Editor");
+    super({
+      key: ESceneKey.Editor,
+      physics: {
+        default: "matter",
+        matter: {
+          // enableSleeping: true,
+          gravity: {
+            y: 0,
+          },
+          debug: {
+            // showJoint: false,
+            showBody: false,
+          },
+        },
+      },
+    });
 
-    this.panelWidth = 400;
+    this.zoom = 1;
+    const cells = [new BrainCell(0, 0)];
 
-    this.tabs = [];
-    this.currentTabId = ETabId.Body;
+    this.organism = new Organism(true, 0, 0, cells);
+
+    this.availableSpots = this.organism.getAvailableSpots();
+
+    console.log(this.availableSpots);
   }
 
   create() {
-    this.panel = this.add.rectangle(
-      this.panelWidth / 2,
-      screenHeight / 2,
-      this.panelWidth,
-      screenHeight,
-      Phaser.Display.Color.ValueToColor("#484848").color
-    );
+    this.organism.create(this.add, this.matter);
 
-    const tabIds = Object.values(ETabId);
-    this.tabs = tabIds.map((id, index) => {
-      const tabHeight = 80;
-      const tabWidth = this.panelWidth / tabIds.length;
+    this.availableSpotGraphics = this.add.graphics();
 
-      const background = this.add
-        .rectangle(
-          index * tabWidth + tabWidth / 2,
-          tabHeight / 2,
-          tabWidth,
-          tabHeight,
-          defaultTabColor
-        )
-        .setInteractive()
-        .on("pointerdown", () => {
-          this.selectTab(id);
-        })
-        .on("pointerover", () => {
-          if (id !== this.currentTabId) {
-            background.fillColor = hoveredTabColor;
-          }
-        })
-        .on("pointerout", () => {
-          if (id !== this.currentTabId) {
-            background.fillColor = defaultTabColor;
-          }
-        });
+    // setup camera
+    if (this.organism?.brain?.image) {
+      this.cameras.main.fadeIn(1000);
+      this.cameras.main.setPosition(EDITOR_WIDTH / 2, 0);
 
-      background.setStrokeStyle(
-        8,
-        Phaser.Display.Color.ValueToColor("#545454").color
+      this.cameras.main.startFollow(
+        this.organism.brain.image,
+        false,
+        0.01,
+        0.01
       );
+    }
 
-      const image = this.add.image(
-        tabWidth / 2 + index * tabWidth,
-        tabHeight / 2,
-        this.getTabImage(id)
-      );
-      image.scale = 0.75;
-
-      return {
-        id: id,
-        image,
-        background,
-        contents: this.getTabContents(id),
-      };
-    });
-
-    this.selectTab(this.currentTabId);
+    this.drawAvailableSpots();
   }
 
   update(time: number, delta: number) {
     super.update(time, delta);
 
+    this.zoom = lerp(this.zoom, 1.6, 0.02);
+    this.cameras.main.setZoom(this.zoom);
     // const currentTab = this.tabs.find((tab) => tab.id === this.currentTab);
     // if (currentTab) {
     //   currentTab.background.fillColor = hoveredTabColor;
     // }
+
+    this.setCameraPosition();
   }
 
-  getTabImage(id: ETabId): EImageKey {
-    switch (id) {
-      case ETabId.Body:
-        return EImageKey.FatCell;
-      case ETabId.Defense:
-        return EImageKey.BrainCell;
-      case ETabId.Mouth:
-      default:
-        return EImageKey.MouthCell;
+  setCameraPosition() {
+    // this.cameras.main.setFollowOffset(-100, 100);
+    // this.cameras.main.se;
+  }
+
+  drawAvailableSpots() {
+    if (this.availableSpotGraphics) {
+      this.availableSpotGraphics.clear();
+      this.availableSpotGraphics.fillStyle(availableSpotColor, 0.2);
+
+      this.availableSpots.forEach((spot) => {
+        this.availableSpotGraphics?.fillCircle(
+          spot.x * SPACING,
+          spot.y * SPACING,
+          RADIUS
+        );
+      });
     }
-  }
-
-  getTabContents(id: ETabId): IShopCell[] {
-    switch (id) {
-      case ETabId.Body:
-        return Object.values(EBodyCell).map((type) => ({
-          type,
-          tier: 1,
-        }));
-      case ETabId.Defense:
-        return [];
-      case ETabId.Mouth:
-      default:
-        return [];
-    }
-  }
-
-  selectTab(id: ETabId) {
-    this.currentTabId = id;
-
-    this.tabs.forEach((tab) => {
-      if (this.currentTabId === tab.id) {
-        tab.background.fillColor = selectedTabColor;
-
-        console.log(tab.contents);
-      } else {
-        tab.background.fillColor = defaultTabColor;
-      }
-    });
   }
 }

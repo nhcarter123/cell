@@ -1,5 +1,5 @@
-export const lerp = (a: number, b: number, c: number): number =>
-  a + (b - a) * c;
+export const lerp = (start: number, end: number, amt: number) =>
+  (1 - amt) * start + amt * end;
 
 export const pointDirX = (dist: number, angle: number): number =>
   dist * Math.cos(toRad(angle));

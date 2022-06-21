@@ -7,6 +7,7 @@ import {
   RADIUS,
   SPACING,
 } from "../../scenes/gameScene";
+import { Vector } from "matter";
 
 type TCellOverrides = Partial<
   Pick<Cell, "health" | "offsetX" | "offsetY" | "mass" | "color" | "imageKey">
@@ -109,6 +110,29 @@ export class Cell {
       this.downRightCell,
       this.downLeftCell,
       this.leftCell,
+    ]);
+  }
+
+  getSurroundingAvailableSpots(): Vector[] {
+    return compact([
+      !this.upLeftCell && {
+        x: this.offsetX - 0.5,
+        y: this.offsetY - RAD_3_OVER_2,
+      },
+      !this.upRightCell && {
+        x: this.offsetX + 0.5,
+        y: this.offsetY - RAD_3_OVER_2,
+      },
+      !this.rightCell && { x: this.offsetX + 1, y: this.offsetY },
+      !this.downRightCell && {
+        x: this.offsetX + 0.5,
+        y: this.offsetY + RAD_3_OVER_2,
+      },
+      !this.downLeftCell && {
+        x: this.offsetX - 0.5,
+        y: this.offsetY + RAD_3_OVER_2,
+      },
+      !this.leftCell && { x: this.offsetX - 1, y: this.offsetY },
     ]);
   }
 

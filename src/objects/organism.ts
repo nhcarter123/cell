@@ -9,7 +9,9 @@ import {
   toRad,
 } from "../helpers/math";
 import { compact } from "lodash";
-import { DAMPING, SPACING, STIFFNESS } from "../scenes/gameScene";
+import { DAMPING, STIFFNESS } from "../scenes/gameScene";
+import { Vector } from "matter";
+import { uniq } from "lodash";
 
 export class Organism {
   public isPlayer: boolean;
@@ -58,16 +60,17 @@ export class Organism {
 
         if (cell.links.length < 2) {
           const surroundingCells = cell.getSurroundingCells();
-
           const neighborCell = surroundingCells[0];
 
-          // todo change this so it always retrieves the opposite cell if available
-          const moreLinkableCells = neighborCell.getSurroundingCells();
+          if (neighborCell) {
+            // todo change this so it always retrieves the opposite cell if available
+            const moreLinkableCells = neighborCell.getSurroundingCells();
 
-          for (const c of moreLinkableCells) {
-            if (c.health > 0 && c !== cell) {
-              this.createLink(matter, cell, c);
-              break;
+            for (const c of moreLinkableCells) {
+              if (c.health > 0 && c !== cell) {
+                this.createLink(matter, cell, c);
+                break;
+              }
             }
           }
         }
@@ -224,5 +227,11 @@ export class Organism {
     this.cells.forEach((cell) => cell.setChildrenCells());
 
     this.setConnected();
+  }
+
+  getAvailableSpots(): Vector[] {
+    return uniq(
+      this.cells.flatMap((cell) => cell.getSurroundingAvailableSpots())
+    );
   }
 }

@@ -6,6 +6,7 @@ import { Organism } from "../objects/organism";
 import { Cell } from "../objects/cells/cell";
 import { compact } from "lodash";
 import GameScene, { RAD_3_OVER_2 } from "./gameScene";
+import { ESceneKey } from "../index";
 
 const org1 = new Organism(true, 400, 400, [
   new FatCell(-0.5, -RAD_3_OVER_2),
@@ -108,6 +109,7 @@ export default class Ocean extends GameScene {
 
   constructor() {
     super({
+      key: ESceneKey.Ocean,
       physics: {
         default: "matter",
         matter: {
