@@ -37,8 +37,6 @@ export default class Editor extends GameScene {
     this.organism = new Organism(true, 0, 0, cells);
 
     this.availableSpots = this.organism.getAvailableSpots();
-
-    console.log(this.availableSpots);
   }
 
   create() {

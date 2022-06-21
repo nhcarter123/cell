@@ -1,14 +1,14 @@
 import { Tab } from "./tab";
 import { EImageKey } from "../../../scenes/gameScene";
-import { ShopContent } from "../shopContent";
+import { MouthCellContent } from "../shopContent/mouthCellContent";
 
 export class MouthTab extends Tab {
   constructor() {
     super(EImageKey.MouthCell, [
-      new ShopContent(),
-      new ShopContent(),
-      new ShopContent(),
-      new ShopContent(),
+      new MouthCellContent(),
+      new MouthCellContent(),
+      new MouthCellContent(),
+      new MouthCellContent(),
     ]);
   }
 }
