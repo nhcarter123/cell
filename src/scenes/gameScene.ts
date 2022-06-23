@@ -1,11 +1,3 @@
-import { pointDir, pointDist } from "../helpers/math";
-import { FatCell } from "../objects/cells/fatCell";
-import { BrainCell } from "../objects/cells/brainCell";
-import { MouthCell } from "../objects/cells/mouthCell";
-import { Organism } from "../objects/organism";
-import { Cell } from "../objects/cells/cell";
-import { compact } from "lodash";
-
 // globals
 export const RADIUS = 20;
 export const PADDING = 4;

@@ -11,7 +11,18 @@ import {
 import { compact } from "lodash";
 import { DAMPING, STIFFNESS } from "../scenes/gameScene";
 import { Vector } from "matter";
-import { uniq } from "lodash";
+import { uniqBy } from "lodash";
+import Ocean from "../scenes/ocean";
+
+interface IBound {
+  min: number;
+  max: number;
+}
+
+interface IBounds {
+  x: IBound;
+  y: IBound;
+}
 
 export class Organism {
   public isPlayer: boolean;
@@ -19,6 +30,7 @@ export class Organism {
   public cells: Cell[];
   public avgPosition: MatterJS.Vector;
   private avgAngle: number;
+  public ocean?: Ocean;
 
   constructor(isPlayer: boolean, x: number, y: number, cells: Cell[]) {
     this.isPlayer = isPlayer;
@@ -30,8 +42,10 @@ export class Organism {
 
   create(
     add: Phaser.GameObjects.GameObjectFactory,
-    matter: Phaser.Physics.Matter.MatterPhysics
+    matter: Phaser.Physics.Matter.MatterPhysics,
+    ocean?: Ocean
   ) {
+    this.ocean = ocean;
     this.cells.forEach((cell) => cell.create(this, add, matter));
 
     this.syncCells(matter);
@@ -101,6 +115,57 @@ export class Organism {
         link,
       });
     }
+  }
+
+  getMaxDiff(): number {
+    const bounds = this.getBounds();
+
+    return Math.max(
+      Math.abs(bounds.x.min - bounds.x.max),
+      Math.abs(bounds.y.min - bounds.y.max)
+    );
+  }
+
+  getCenter(): Vector {
+    const bounds = this.getBounds();
+
+    return {
+      x: (bounds.x.min + bounds.x.max) / 2,
+      y: (bounds.y.min + bounds.y.max) / 2,
+    };
+  }
+
+  getBounds(): IBounds {
+    let minX = 0;
+    let maxX = 0;
+    let minY = 0;
+    let maxY = 0;
+
+    this.cells.forEach((cell) => {
+      if (cell.offsetX < minX) {
+        minX = cell.offsetX;
+      }
+      if (cell.offsetX > maxX) {
+        maxX = cell.offsetX;
+      }
+      if (cell.offsetY < minY) {
+        minY = cell.offsetY;
+      }
+      if (cell.offsetY > maxY) {
+        maxY = cell.offsetY;
+      }
+    });
+
+    return {
+      x: {
+        min: minX,
+        max: maxX,
+      },
+      y: {
+        min: minY,
+        max: maxY,
+      },
+    };
   }
 
   calcCenterOfMass(targetDir: number) {
@@ -207,13 +272,13 @@ export class Organism {
     this.cells.forEach((cell) => (cell.beenScanned = false));
   }
 
-  syncCells(matter: Phaser.Physics.Matter.MatterPhysics) {
+  syncCells(matter?: Phaser.Physics.Matter.MatterPhysics) {
     this.cells = compact(
       this.cells.map((cell) => {
-        this.syncLinks(matter, cell);
+        matter && this.syncLinks(matter, cell);
 
         if (cell.health <= 0) {
-          cell.destroy(matter);
+          matter && cell.destroy(matter);
         } else {
           // set all cells connected state to false in preparation for setConnected
           cell.connected = false;
@@ -230,8 +295,9 @@ export class Organism {
   }
 
   getAvailableSpots(): Vector[] {
-    return uniq(
-      this.cells.flatMap((cell) => cell.getSurroundingAvailableSpots())
+    return uniqBy(
+      this.cells.flatMap((cell) => cell.getSurroundingAvailableSpots()),
+      (vector) => `${vector.x}${vector.y.toFixed(4)}`
     );
   }
 }

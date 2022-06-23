@@ -26,3 +26,6 @@ export const angleDiff = (facingAngle: number, angleOfTarget: number): number =>
 const toDegree = (ang: number): number => ang * (180 / Math.PI);
 
 export const toRad = (ang: number): number => ang * (Math.PI / 180);
+
+export const floatEquals = (f1: number, f2: number, depth = 4): boolean =>
+  f1.toFixed(depth) === f2.toFixed(depth);

@@ -50,60 +50,6 @@ interface IFindResult {
   closestCell: Cell | undefined;
 }
 
-export const findClosestCell = (x: number, y: number): IFindResult => {
-  let closestCellDist = Infinity;
-  let closestCell = undefined;
-
-  organisms.forEach((org) => {
-    if (!org.isPlayer) {
-      org.cells.forEach((cell) => {
-        if (cell.obj) {
-          const dist = pointDist(
-            x,
-            y,
-            cell.obj.position.x,
-            cell.obj.position.y
-          );
-
-          if (dist < closestCellDist) {
-            closestCellDist = dist;
-            closestCell = cell;
-          }
-        }
-      });
-    }
-  });
-
-  return { closestCell, closestCellDist };
-};
-
-export const findCellsWithinRadius = (
-  x: number,
-  y: number,
-  radius: number
-): Cell[] => {
-  return compact(
-    organisms.flatMap((org) => {
-      if (!org.isPlayer) {
-        return org.cells.map((cell) => {
-          if (cell.obj) {
-            const dist = pointDist(
-              x,
-              y,
-              cell.obj.position.x,
-              cell.obj.position.y
-            );
-
-            if (dist < radius) {
-              return cell;
-            }
-          }
-        });
-      }
-    })
-  );
-};
-
 export default class Ocean extends GameScene {
   private debugCircle?: Phaser.GameObjects.Arc;
 
@@ -136,7 +82,7 @@ export default class Ocean extends GameScene {
     });
 
     // create cells
-    organisms.forEach((org) => org.create(this.add, this.matter));
+    organisms.forEach((org) => org.create(this.add, this.matter, this));
 
     // setup camera
     const player = organisms.find((org) => org.isPlayer);
@@ -202,5 +148,55 @@ export default class Ocean extends GameScene {
         org.moveTowards(targetDir, this.matter);
       }
     });
+  }
+
+  findClosestCell(x: number, y: number): IFindResult {
+    let closestCellDist = Infinity;
+    let closestCell = undefined;
+
+    organisms.forEach((org) => {
+      if (!org.isPlayer) {
+        org.cells.forEach((cell) => {
+          if (cell.obj) {
+            const dist = pointDist(
+              x,
+              y,
+              cell.obj.position.x,
+              cell.obj.position.y
+            );
+
+            if (dist < closestCellDist) {
+              closestCellDist = dist;
+              closestCell = cell;
+            }
+          }
+        });
+      }
+    });
+
+    return { closestCell, closestCellDist };
+  }
+
+  findCellsWithinRadius(x: number, y: number, radius: number): Cell[] {
+    return compact(
+      organisms.flatMap((org) => {
+        if (!org.isPlayer) {
+          return org.cells.map((cell) => {
+            if (cell.obj) {
+              const dist = pointDist(
+                x,
+                y,
+                cell.obj.position.x,
+                cell.obj.position.y
+              );
+
+              if (dist < radius) {
+                return cell;
+              }
+            }
+          });
+        }
+      })
+    );
   }
 }

@@ -9,6 +9,7 @@ import {
 } from "../objects/editor/tab/tab";
 import { MouthTab } from "../objects/editor/tab/mouthTab";
 import { DefenseTab } from "../objects/editor/tab/defenseTab";
+import eventsCenter, { EBuyCell, EEvent } from "../events/eventCenter";
 
 const TAB_HEIGHT = 80;
 
@@ -32,6 +33,7 @@ export default class EditorGUI extends GameScene {
       screenHeight,
       Phaser.Display.Color.ValueToColor("#484848").color
     );
+    this.panel.alpha = 0.2;
 
     this.tabs.forEach((tab, index) => {
       const tabWidth = (EDITOR_WIDTH - 8) / this.tabs.length;
@@ -55,6 +57,10 @@ export default class EditorGUI extends GameScene {
     });
 
     this.selectTab(this.tabIndex);
+
+    this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => {
+      eventsCenter.off(EEvent.BuyCell);
+    });
   }
 
   update(time: number, delta: number) {
@@ -67,7 +73,8 @@ export default class EditorGUI extends GameScene {
   }
 
   buyItem(cost: number) {
-    console.log(cost);
+    // console.log(cost);
+    eventsCenter.emit(EEvent.BuyCell, EBuyCell.MouthCell);
   }
 
   selectTab(selectedIndex: number) {

@@ -1,5 +1,4 @@
 import { Cell } from "./cell";
-import { findCellsWithinRadius, findClosestCell } from "../../scenes/ocean";
 import { pointDir, pointDirX, pointDirY } from "../../helpers/math";
 import { EImageKey, MASS, RADIUS } from "../../scenes/gameScene";
 
@@ -38,12 +37,12 @@ export class MouthCell extends Cell {
 
     if (this.currentAttackCoolDown === 0) {
       if (this.obj && attacking) {
-        const findResult = findClosestCell(
+        const findResult = this.organism?.ocean?.findClosestCell(
           this.obj.position.x,
           this.obj.position.y
         );
 
-        if (findResult.closestCellDist < RADIUS + 70) {
+        if (findResult && findResult.closestCellDist < RADIUS + 70) {
           this.currentAttackCoolDown = this.attackCoolDown + this.attackFrames;
           this.currentAttackFrames = this.attackFrames + this.impulseFrames;
           this.hitEnemies = [];
@@ -78,18 +77,19 @@ export class MouthCell extends Cell {
       //   this.target.obj.position.y
       // );
 
-      const hitCells = findCellsWithinRadius(
+      const hitCells = this.organism?.ocean?.findCellsWithinRadius(
         this.obj.position.x,
         this.obj.position.y,
         RADIUS * 2 + 5
       );
 
-      hitCells.forEach((cell) => {
-        if (!this.hitEnemies.includes(cell)) {
-          cell.health -= this.damage;
-          this.hitEnemies.push(cell);
-        }
-      });
+      hitCells &&
+        hitCells.forEach((cell) => {
+          if (!this.hitEnemies.includes(cell)) {
+            cell.health -= this.damage;
+            this.hitEnemies.push(cell);
+          }
+        });
     }
   }
 }

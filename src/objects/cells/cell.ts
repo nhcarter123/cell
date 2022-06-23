@@ -8,6 +8,7 @@ import {
   SPACING,
 } from "../../scenes/gameScene";
 import { Vector } from "matter";
+import { floatEquals } from "../../helpers/math";
 
 type TCellOverrides = Partial<
   Pick<Cell, "health" | "offsetX" | "offsetY" | "mass" | "color" | "imageKey">
@@ -39,8 +40,8 @@ export class Cell {
   // public leftLink?: MatterJS.ConstraintType;
   public links: ICellLink[];
 
-  readonly offsetX: number;
-  readonly offsetY: number;
+  public offsetX: number;
+  public offsetY: number;
 
   public readonly mass: number;
   public readonly color: number;
@@ -76,23 +77,26 @@ export class Cell {
   create(
     org: Organism,
     add: Phaser.GameObjects.GameObjectFactory,
-    matter: Phaser.Physics.Matter.MatterPhysics
+    matter?: Phaser.Physics.Matter.MatterPhysics
   ) {
     this.organism = org;
-    this.obj = matter.add.circle(
-      this.organism.avgPosition.x + this.offsetX * SPACING,
-      this.organism.avgPosition.y + this.offsetY * SPACING,
-      RADIUS,
-      {
-        restitution: 0,
-        mass: this.mass,
-        // isStatic: true,
-      }
-    );
+
+    if (matter) {
+      this.obj = matter.add.circle(
+        this.organism.avgPosition.x + this.offsetX * SPACING,
+        this.organism.avgPosition.y + this.offsetY * SPACING,
+        RADIUS,
+        {
+          restitution: 0,
+          mass: this.mass,
+          // isStatic: true,
+        }
+      );
+    }
 
     this.image = add.image(
-      this.obj.position.x,
-      this.obj.position.y,
+      this.offsetX * SPACING,
+      this.offsetY * SPACING,
       this.imageKey
     );
     this.image.scale = 0.65;
@@ -232,37 +236,37 @@ export class Cell {
     this.upLeftCell = this.organism?.cells.find(
       (c) =>
         this.offsetX - 0.5 === c.offsetX &&
-        this.offsetY - RAD_3_OVER_2 === c.offsetY &&
+        floatEquals(this.offsetY - RAD_3_OVER_2, c.offsetY) &&
         c.health > 0
     );
     this.upRightCell = this.organism?.cells.find(
       (c) =>
         this.offsetX + 0.5 === c.offsetX &&
-        this.offsetY - RAD_3_OVER_2 === c.offsetY &&
+        floatEquals(this.offsetY - RAD_3_OVER_2, c.offsetY) &&
         c.health > 0
     );
     this.leftCell = this.organism?.cells.find(
       (c) =>
         this.offsetX - 1 === c.offsetX &&
-        this.offsetY === c.offsetY &&
+        floatEquals(this.offsetY, c.offsetY) &&
         c.health > 0
     );
     this.rightCell = this.organism?.cells.find(
       (c) =>
         this.offsetX + 1 === c.offsetX &&
-        this.offsetY === c.offsetY &&
+        floatEquals(this.offsetY, c.offsetY) &&
         c.health > 0
     );
     this.downLeftCell = this.organism?.cells.find(
       (c) =>
         this.offsetX - 0.5 === c.offsetX &&
-        this.offsetY + RAD_3_OVER_2 === c.offsetY &&
+        floatEquals(this.offsetY + RAD_3_OVER_2, c.offsetY) &&
         c.health > 0
     );
     this.downRightCell = this.organism?.cells.find(
       (c) =>
         this.offsetX + 0.5 === c.offsetX &&
-        this.offsetY + RAD_3_OVER_2 === c.offsetY &&
+        floatEquals(this.offsetY + RAD_3_OVER_2, c.offsetY) &&
         c.health > 0
     );
   }
