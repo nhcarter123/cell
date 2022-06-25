@@ -4,11 +4,12 @@ import { MouthCell } from "../objects/cells/mouthCell";
 import { FatCell } from "../objects/cells/fatCell";
 import { BrainCell } from "../objects/cells/brainCell";
 import { Organism } from "../objects/organism";
+import star from "../savedOrganisms/star";
 
-type TSavedCell = Pick<Cell, "offsetX" | "offsetY">;
+export type TSavedCell = Pick<Cell, "offsetX" | "offsetY" | "angleOffset">;
 type TSavedOrganism = Pick<Organism, "isPlayer">;
 
-interface ISavedCell extends TSavedCell {
+export interface ISavedCell extends TSavedCell {
   type: ECellType;
 }
 
@@ -27,33 +28,21 @@ export const saveData: ISaveData = {
     isPlayer: true,
     x: 0,
     y: 0,
-    cells: [
-      {
-        type: ECellType.BrainCell,
-        offsetX: 0,
-        offsetY: 0,
-      },
-      {
-        type: ECellType.FatCell,
-        offsetX: 1,
-        offsetY: 0,
-      },
-    ],
+    cells: star,
   },
 };
 
 export const createCellFromType = (
   type: ECellType,
-  x: number,
-  y: number
+  saveData: Partial<TSavedCell>
 ): Cell => {
   switch (type) {
     case ECellType.BrainCell:
-      return new BrainCell(x, y);
+      return new BrainCell(saveData);
     case ECellType.MouthCell:
-      return new MouthCell(x, y);
+      return new MouthCell(saveData);
     case ECellType.FatCell:
-      return new FatCell(x, y);
+      return new FatCell(saveData);
   }
 };
 
@@ -76,9 +65,7 @@ export const loadOrganism = (savedOrganism: ISavedOrganism): Organism => {
     savedOrganism.isPlayer,
     savedOrganism.x,
     savedOrganism.y,
-    savedOrganism.cells.map((cell) =>
-      createCellFromType(cell.type, cell.offsetX, cell.offsetY)
-    )
+    savedOrganism.cells.map((cell) => createCellFromType(cell.type, cell))
   );
 };
 
@@ -93,6 +80,7 @@ export const saveOrganism = (organism: Organism): ISavedOrganism => {
       type: getTypeFromCell(cell),
       offsetX: cell.offsetX,
       offsetY: cell.offsetY,
+      angleOffset: cell.angleOffset,
     })),
   };
 };

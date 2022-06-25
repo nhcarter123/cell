@@ -2,13 +2,13 @@ import { BrainCell } from "./cells/brainCell";
 import { Cell } from "./cells/cell";
 import {
   angleDiff,
+  lengthDirX,
+  lengthDirY,
   pointDir,
-  pointDirX,
-  pointDirY,
   pointDist,
 } from "../helpers/math";
 import { compact } from "lodash";
-import { DAMPING, STIFFNESS } from "../scenes/gameScene";
+import { DAMPING, RADIUS, SPACING, STIFFNESS } from "../scenes/gameScene";
 import { Vector } from "matter";
 import Ocean from "../scenes/ocean";
 import DegToRad = Phaser.Math.DegToRad;
@@ -72,52 +72,86 @@ export class Organism {
 
         linkableCells.forEach((c) => {
           if (c.health > 0) {
-            this.createLink(matter, cell, c);
+            const isDouble = cell.isDangly(c) || c.isDangly(cell);
+
+            this.createLink(matter, cell, c, isDouble);
           }
         });
-
-        if (cell.links.length < 2) {
-          const surroundingCells = cell.getSurroundingCells();
-          const neighborCell = surroundingCells[0];
-
-          if (neighborCell) {
-            // todo change this so it always retrieves the opposite cell if available
-            const moreLinkableCells = neighborCell.getSurroundingCells();
-
-            for (const c of moreLinkableCells) {
-              if (c.health > 0 && c !== cell) {
-                this.createLink(matter, cell, c);
-                break;
-              }
-            }
-          }
-        }
       }
     }
   }
 
-  createLink(matter: Phaser.Physics.Matter.MatterPhysics, c1: Cell, c2: Cell) {
+  createLink(
+    matter: Phaser.Physics.Matter.MatterPhysics,
+    c1: Cell,
+    c2: Cell,
+    isDouble: boolean
+  ) {
     if (c1.obj && c2.obj) {
-      const dist = pointDist(
-        c1.obj.position.x,
-        c1.obj.position.y,
-        c2.obj.position.x,
-        c2.obj.position.y
-      );
+      if (isDouble) {
+        const dir = pointDir(
+          c1.obj.position.x,
+          c1.obj.position.y,
+          c2.obj.position.x,
+          c2.obj.position.y
+        );
+        const offset1 = {
+          x: lengthDirX(RADIUS / 2, dir + 90),
+          y: lengthDirY(RADIUS / 2, dir + 90),
+        };
+        const offset2 = {
+          x: lengthDirX(RADIUS / 2, dir - 90),
+          y: lengthDirY(RADIUS / 2, dir - 90),
+        };
+        const dist = pointDist(
+          c1.obj.position.x + offset1.x,
+          c1.obj.position.y + offset1.y,
+          c2.obj.position.x + offset2.x,
+          c2.obj.position.y + offset2.y
+        );
 
-      const link = matter.add.constraint(c1.obj, c2.obj, dist, STIFFNESS, {
-        damping: DAMPING,
-      });
+        const link1 = matter.add.constraint(c1.obj, c2.obj, dist, STIFFNESS, {
+          damping: DAMPING,
+          pointA: offset1,
+          pointB: offset2,
+        });
+        const link2 = matter.add.constraint(c1.obj, c2.obj, dist, STIFFNESS, {
+          damping: DAMPING,
+          pointA: offset2,
+          pointB: offset1,
+        });
 
-      c1.links.push({
-        cell: c2,
-        link,
-      });
+        c1.links.push({
+          cell: c2,
+          link: link1,
+        });
+        c1.links.push({
+          cell: c2,
+          link: link2,
+        });
+        c2.links.push({
+          cell: c1,
+          link: link1,
+        });
+        c2.links.push({
+          cell: c1,
+          link: link2,
+        });
+      } else {
+        const link = matter.add.constraint(c1.obj, c2.obj, SPACING, STIFFNESS, {
+          damping: DAMPING,
+        });
 
-      c2.links.push({
-        cell: c1,
-        link,
-      });
+        c1.links.push({
+          cell: c2,
+          link,
+        });
+
+        c2.links.push({
+          cell: c1,
+          link,
+        });
+      }
     }
   }
 
@@ -196,7 +230,7 @@ export class Organism {
 
           if (cell.image) {
             cell.image.rotation = DegToRad(
-              rotation - cellAndAngle.angle + 90 + cell.angleOffset
+              rotation - cellAndAngle.angle + cell.angleOffset
             );
           }
 
@@ -232,22 +266,22 @@ export class Organism {
         // console.log(diff);
 
         matter.applyForce(cell.obj, {
-          x: pointDirX(
+          x: lengthDirX(
             0.000002 * Math.min(Math.abs(this.avgAngle), 60),
             angleToCenter - 90 * -Math.sign(this.avgAngle)
           ),
-          y: pointDirY(
+          y: lengthDirY(
             0.000002 * Math.min(Math.abs(this.avgAngle), 60),
             angleToCenter - 90 * -Math.sign(this.avgAngle)
           ),
         });
 
         matter.applyForce(cell.obj, {
-          x: pointDirX(
+          x: lengthDirX(
             0.000001 * (60 - Math.min(Math.abs(this.avgAngle), 60)),
             targetDir
           ),
-          y: pointDirY(
+          y: lengthDirY(
             0.000001 * (60 - Math.min(Math.abs(this.avgAngle), 60)),
             targetDir
           ),

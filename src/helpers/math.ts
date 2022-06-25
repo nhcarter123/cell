@@ -4,10 +4,10 @@ import RadToDeg = Phaser.Math.RadToDeg;
 export const lerp = (start: number, end: number, amt: number) =>
   (1 - amt) * start + amt * end;
 
-export const pointDirX = (dist: number, angle: number): number =>
+export const lengthDirX = (dist: number, angle: number): number =>
   dist * Math.cos(DegToRad(angle));
 
-export const pointDirY = (dist: number, angle: number): number =>
+export const lengthDirY = (dist: number, angle: number): number =>
   dist * Math.sin(DegToRad(angle));
 
 export const pointDir = (x1: number, y1: number, x2: number, y2: number) => {

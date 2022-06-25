@@ -61,9 +61,7 @@ export default class Editor extends GameScene {
       this.addBuyingCell();
     });
     eventsCenter.on(EEvent.Continue, () => {
-      console.log(this.organism);
       saveData.organism = saveOrganism(this.organism);
-      console.log(saveData.organism);
 
       this.scene.sleep(ESceneKey.EditorGUI);
       this.scene.switch(ESceneKey.Ocean);
@@ -205,11 +203,10 @@ export default class Editor extends GameScene {
 
   addBuyingCell() {
     const offset = this.getMousePos();
-    const cell = createCellFromType(
-      editorState.type,
-      offset.x / SPACING,
-      offset.y / SPACING
-    );
+    const cell = createCellFromType(editorState.type, {
+      offsetX: offset.x / SPACING,
+      offsetY: offset.y / SPACING,
+    });
     cell.create(this.organism, this.add);
     editorState.mouseCell = cell;
 

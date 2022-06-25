@@ -1,47 +1,11 @@
 import { pointDir, pointDist } from "../helpers/math";
-import { FatCell } from "../objects/cells/fatCell";
-import { BrainCell } from "../objects/cells/brainCell";
 import { Organism } from "../objects/organism";
 import { Cell } from "../objects/cells/cell";
 import { compact } from "lodash";
-import GameScene, { RAD_3_OVER_2 } from "./gameScene";
+import GameScene from "./gameScene";
 import { ESceneKey } from "../index";
 import { loadOrganism, saveData } from "../context/saveData";
-
-// const org1 = new Organism(true, 400, 400, [
-//   new FatCell(-0.5, -RAD_3_OVER_2),
-//   new FatCell(0.5, -RAD_3_OVER_2),
-//
-//   new BrainCell(0, 0),
-//   new FatCell(-1, 0),
-//   new FatCell(1, 0),
-//   new MouthCell(2, 0),
-//
-//   new FatCell(-0.5, RAD_3_OVER_2),
-//   new FatCell(0.5, RAD_3_OVER_2),
-//
-//   new FatCell(-2, 0),
-//   new FatCell(-3, 0),
-//   new FatCell(-4, 0),
-// ]);
-const org2 = new Organism(false, 800, 400, [
-  new FatCell(-0.5, -RAD_3_OVER_2),
-  new FatCell(0.5, -RAD_3_OVER_2),
-
-  new BrainCell(0, 0),
-  new FatCell(-1, 0),
-  new FatCell(1, 0),
-
-  new FatCell(-0.5, RAD_3_OVER_2),
-  new FatCell(0.5, RAD_3_OVER_2),
-
-  new FatCell(0, 2 * RAD_3_OVER_2),
-  new FatCell(-1, 2 * RAD_3_OVER_2),
-  new FatCell(1, 2 * RAD_3_OVER_2),
-
-  new FatCell(-0.5, 3 * RAD_3_OVER_2),
-  new FatCell(0.5, 3 * RAD_3_OVER_2),
-]);
+import star from "../savedOrganisms/star";
 
 interface IFindResult {
   closestCellDist: number;
@@ -76,7 +40,15 @@ export default class Ocean extends GameScene {
   create() {
     // this.matter.add.mouseSpring();
     // this.debugCircle = this.add.circle(0, 0, 20, 0xffffff);
-    this.organisms = [loadOrganism(saveData.organism), org2];
+    this.organisms = [
+      loadOrganism(saveData.organism),
+      loadOrganism({
+        isPlayer: false,
+        x: 600,
+        y: 600,
+        cells: star,
+      }),
+    ];
 
     this.matter.add.rectangle(1000, 500, 200, 150, {
       restitution: 0.9,
@@ -152,12 +124,12 @@ export default class Ocean extends GameScene {
     });
   }
 
-  findClosestCell(x: number, y: number): IFindResult {
+  findClosestCell(x: number, y: number, isPlayer: boolean): IFindResult {
     let closestCellDist = Infinity;
     let closestCell = undefined;
 
     this.organisms.forEach((org) => {
-      if (!org.isPlayer) {
+      if (isPlayer !== org.isPlayer) {
         org.cells.forEach((cell) => {
           if (cell.obj) {
             const dist = pointDist(
@@ -179,10 +151,15 @@ export default class Ocean extends GameScene {
     return { closestCell, closestCellDist };
   }
 
-  findCellsWithinRadius(x: number, y: number, radius: number): Cell[] {
+  findCellsWithinRadius(
+    x: number,
+    y: number,
+    radius: number,
+    isPlayer: boolean
+  ): Cell[] {
     return compact(
       this.organisms.flatMap((org) => {
-        if (!org.isPlayer) {
+        if (isPlayer !== org.isPlayer) {
           return org.cells.map((cell) => {
             if (cell.obj) {
               const dist = pointDist(

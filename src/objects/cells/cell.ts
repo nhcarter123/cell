@@ -9,11 +9,19 @@ import {
 } from "../../scenes/gameScene";
 import { Vector } from "matter";
 import { floatEquals } from "../../helpers/math";
+import DegToRad = Phaser.Math.DegToRad;
 
 type TCellOverrides = Partial<
   Pick<
     Cell,
-    "health" | "offsetX" | "offsetY" | "mass" | "color" | "imageKey" | "isBody"
+    | "health"
+    | "offsetX"
+    | "offsetY"
+    | "mass"
+    | "color"
+    | "imageKey"
+    | "isBody"
+    | "angleOffset"
   >
 >;
 
@@ -71,6 +79,8 @@ export class Cell {
     this.color = overrides.color !== undefined ? overrides.color : 0xffffff;
     this.isBody = overrides.isBody !== undefined ? overrides.isBody : true;
     this.mass = overrides.mass !== undefined ? overrides.mass : 1;
+    this.angleOffset =
+      overrides.angleOffset !== undefined ? overrides.angleOffset : 0;
     this.imageKey =
       overrides.imageKey !== undefined ? overrides.imageKey : EImageKey.FatCell;
     this.health = overrides.health !== undefined ? overrides.health : 1;
@@ -78,7 +88,6 @@ export class Cell {
 
     this.previousHealth = this.health;
     this.showHealthBar = 0;
-    this.angleOffset = 0;
 
     this.connected = false;
     this.beenScanned = false;
@@ -112,6 +121,7 @@ export class Cell {
       this.imageKey
     );
     this.image.scale = 0.65;
+    this.image.rotation = DegToRad(this.angleOffset);
 
     this.healthBar = new HealthBar(add);
 
@@ -178,6 +188,29 @@ export class Cell {
         },
       },
     ]);
+  }
+
+  isDangly(cell: Cell): boolean {
+    return !compact([
+      this.rightCell &&
+        this.downRightCell &&
+        (cell === this.rightCell || cell === this.downRightCell),
+      this.downRightCell &&
+        this.downLeftCell &&
+        (cell === this.downRightCell || cell === this.downLeftCell),
+      this.downLeftCell &&
+        this.leftCell &&
+        (cell === this.downLeftCell || cell === this.leftCell),
+      this.leftCell &&
+        this.upLeftCell &&
+        (cell === this.leftCell || cell === this.upLeftCell),
+      this.upLeftCell &&
+        this.upRightCell &&
+        (cell === this.upLeftCell || cell === this.upRightCell),
+      this.upRightCell &&
+        this.rightCell &&
+        (cell === this.upRightCell || cell === this.rightCell),
+    ]).length;
   }
 
   getLinkableCells(): Cell[] {

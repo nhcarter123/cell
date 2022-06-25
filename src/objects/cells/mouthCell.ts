@@ -1,6 +1,7 @@
 import { Cell } from "./cell";
-import { pointDir, pointDirX, pointDirY } from "../../helpers/math";
+import { lengthDirX, lengthDirY, pointDir } from "../../helpers/math";
 import { EImageKey, MASS, RADIUS } from "../../scenes/gameScene";
+import { TSavedCell } from "../../context/saveData";
 
 export class MouthCell extends Cell {
   private currentAttackCoolDown: number;
@@ -12,10 +13,11 @@ export class MouthCell extends Cell {
   private hitEnemies: Cell[];
   private readonly damage: number;
 
-  constructor(offsetX: number, offsetY: number) {
+  constructor({ offsetX, offsetY, angleOffset }: Partial<TSavedCell>) {
     super({
       offsetX,
       offsetY,
+      angleOffset,
       color: 0xf2a041,
       mass: MASS,
       health: 8,
@@ -40,7 +42,8 @@ export class MouthCell extends Cell {
       if (this.obj && attacking) {
         const findResult = this.organism?.ocean?.findClosestCell(
           this.obj.position.x,
-          this.obj.position.y
+          this.obj.position.y,
+          this.organism?.isPlayer
         );
 
         if (findResult && findResult.closestCellDist < RADIUS + 70) {
@@ -66,8 +69,8 @@ export class MouthCell extends Cell {
 
       if (this.currentAttackFrames - this.attackFrames > 0) {
         matter.applyForce(this.obj, {
-          x: pointDirX(0.008, dirToCell),
-          y: pointDirY(0.008, dirToCell),
+          x: lengthDirX(0.008, dirToCell),
+          y: lengthDirY(0.008, dirToCell),
         });
       }
 
@@ -81,7 +84,8 @@ export class MouthCell extends Cell {
       const hitCells = this.organism?.ocean?.findCellsWithinRadius(
         this.obj.position.x,
         this.obj.position.y,
-        RADIUS * 2 + 5
+        RADIUS * 2 + 5,
+        this.organism?.isPlayer
       );
 
       hitCells &&
