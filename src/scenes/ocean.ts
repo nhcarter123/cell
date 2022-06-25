@@ -1,29 +1,29 @@
 import { pointDir, pointDist } from "../helpers/math";
 import { FatCell } from "../objects/cells/fatCell";
 import { BrainCell } from "../objects/cells/brainCell";
-import { MouthCell } from "../objects/cells/mouthCell";
 import { Organism } from "../objects/organism";
 import { Cell } from "../objects/cells/cell";
 import { compact } from "lodash";
 import GameScene, { RAD_3_OVER_2 } from "./gameScene";
 import { ESceneKey } from "../index";
+import { loadOrganism, saveData } from "../context/saveData";
 
-const org1 = new Organism(true, 400, 400, [
-  new FatCell(-0.5, -RAD_3_OVER_2),
-  new FatCell(0.5, -RAD_3_OVER_2),
-
-  new BrainCell(0, 0),
-  new FatCell(-1, 0),
-  new FatCell(1, 0),
-  new MouthCell(2, 0),
-
-  new FatCell(-0.5, RAD_3_OVER_2),
-  new FatCell(0.5, RAD_3_OVER_2),
-
-  new FatCell(-2, 0),
-  new FatCell(-3, 0),
-  new FatCell(-4, 0),
-]);
+// const org1 = new Organism(true, 400, 400, [
+//   new FatCell(-0.5, -RAD_3_OVER_2),
+//   new FatCell(0.5, -RAD_3_OVER_2),
+//
+//   new BrainCell(0, 0),
+//   new FatCell(-1, 0),
+//   new FatCell(1, 0),
+//   new MouthCell(2, 0),
+//
+//   new FatCell(-0.5, RAD_3_OVER_2),
+//   new FatCell(0.5, RAD_3_OVER_2),
+//
+//   new FatCell(-2, 0),
+//   new FatCell(-3, 0),
+//   new FatCell(-4, 0),
+// ]);
 const org2 = new Organism(false, 800, 400, [
   new FatCell(-0.5, -RAD_3_OVER_2),
   new FatCell(0.5, -RAD_3_OVER_2),
@@ -43,8 +43,6 @@ const org2 = new Organism(false, 800, 400, [
   new FatCell(0.5, 3 * RAD_3_OVER_2),
 ]);
 
-const organisms: Organism[] = [org1, org2];
-
 interface IFindResult {
   closestCellDist: number;
   closestCell: Cell | undefined;
@@ -52,6 +50,7 @@ interface IFindResult {
 
 export default class Ocean extends GameScene {
   private debugCircle?: Phaser.GameObjects.Arc;
+  private organisms: Organism[];
 
   constructor() {
     super({
@@ -70,11 +69,14 @@ export default class Ocean extends GameScene {
         },
       },
     });
+
+    this.organisms = [];
   }
 
   create() {
     // this.matter.add.mouseSpring();
     // this.debugCircle = this.add.circle(0, 0, 20, 0xffffff);
+    this.organisms = [loadOrganism(saveData.organism), org2];
 
     this.matter.add.rectangle(1000, 500, 200, 150, {
       restitution: 0.9,
@@ -82,10 +84,10 @@ export default class Ocean extends GameScene {
     });
 
     // create cells
-    organisms.forEach((org) => org.create(this.add, this.matter, this));
+    this.organisms.forEach((org) => org.create(this.add, this.matter, this));
 
     // setup camera
-    const player = organisms.find((org) => org.isPlayer);
+    const player = this.organisms.find((org) => org.isPlayer);
 
     if (player?.brain?.image) {
       this.cameras.main.startFollow(player.brain.image, false, 0.01, 0.01);
@@ -107,7 +109,7 @@ export default class Ocean extends GameScene {
     const mouseX = this.input.mousePointer.x + this.cameras.main.scrollX;
     const mouseY = this.input.mousePointer.y + this.cameras.main.scrollY;
 
-    organisms.forEach((org) =>
+    this.organisms.forEach((org) =>
       org.cells.forEach((cell) =>
         cell.update(this.matter, this.input.mousePointer.leftButtonDown())
       )
@@ -130,7 +132,7 @@ export default class Ocean extends GameScene {
       this.leftButtonPressed = false;
     }
 
-    organisms.forEach((org) => {
+    this.organisms.forEach((org) => {
       let targetDir = 0;
 
       if (org.isPlayer) {
@@ -154,7 +156,7 @@ export default class Ocean extends GameScene {
     let closestCellDist = Infinity;
     let closestCell = undefined;
 
-    organisms.forEach((org) => {
+    this.organisms.forEach((org) => {
       if (!org.isPlayer) {
         org.cells.forEach((cell) => {
           if (cell.obj) {
@@ -179,7 +181,7 @@ export default class Ocean extends GameScene {
 
   findCellsWithinRadius(x: number, y: number, radius: number): Cell[] {
     return compact(
-      organisms.flatMap((org) => {
+      this.organisms.flatMap((org) => {
         if (!org.isPlayer) {
           return org.cells.map((cell) => {
             if (cell.obj) {

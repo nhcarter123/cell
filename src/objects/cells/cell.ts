@@ -11,7 +11,10 @@ import { Vector } from "matter";
 import { floatEquals } from "../../helpers/math";
 
 type TCellOverrides = Partial<
-  Pick<Cell, "health" | "offsetX" | "offsetY" | "mass" | "color" | "imageKey">
+  Pick<
+    Cell,
+    "health" | "offsetX" | "offsetY" | "mass" | "color" | "imageKey" | "isBody"
+  >
 >;
 
 interface ICellAndAngle {
@@ -22,6 +25,11 @@ interface ICellAndAngle {
 interface ICellLink {
   cell: Cell;
   link: MatterJS.ConstraintType;
+}
+
+interface ISpotAndOffset {
+  pos: Vector;
+  offset: number;
 }
 
 export class Cell {
@@ -45,6 +53,8 @@ export class Cell {
 
   public readonly mass: number;
   public readonly color: number;
+  public readonly isBody: boolean;
+  public angleOffset: number;
 
   public health: number;
   public maxHealth: number;
@@ -59,6 +69,7 @@ export class Cell {
     this.offsetX = overrides.offsetX !== undefined ? overrides.offsetX : 0;
     this.offsetY = overrides.offsetY !== undefined ? overrides.offsetY : 0;
     this.color = overrides.color !== undefined ? overrides.color : 0xffffff;
+    this.isBody = overrides.isBody !== undefined ? overrides.isBody : true;
     this.mass = overrides.mass !== undefined ? overrides.mass : 1;
     this.imageKey =
       overrides.imageKey !== undefined ? overrides.imageKey : EImageKey.FatCell;
@@ -67,6 +78,7 @@ export class Cell {
 
     this.previousHealth = this.health;
     this.showHealthBar = 0;
+    this.angleOffset = 0;
 
     this.connected = false;
     this.beenScanned = false;
@@ -117,26 +129,54 @@ export class Cell {
     ]);
   }
 
-  getSurroundingAvailableSpots(): Vector[] {
+  getSurroundingAvailableSpots(): ISpotAndOffset[] {
+    if (!this.isBody) {
+      return [];
+    }
+
     return compact([
       !this.upLeftCell && {
-        x: this.offsetX - 0.5,
-        y: this.offsetY - RAD_3_OVER_2,
+        offset: 330,
+        pos: {
+          x: this.offsetX - 0.5,
+          y: this.offsetY - RAD_3_OVER_2,
+        },
       },
       !this.upRightCell && {
-        x: this.offsetX + 0.5,
-        y: this.offsetY - RAD_3_OVER_2,
+        offset: 30,
+        pos: {
+          x: this.offsetX + 0.5,
+          y: this.offsetY - RAD_3_OVER_2,
+        },
       },
-      !this.rightCell && { x: this.offsetX + 1, y: this.offsetY },
+      !this.rightCell && {
+        offset: 90,
+        pos: {
+          x: this.offsetX + 1,
+          y: this.offsetY,
+        },
+      },
       !this.downRightCell && {
-        x: this.offsetX + 0.5,
-        y: this.offsetY + RAD_3_OVER_2,
+        offset: 150,
+        pos: {
+          x: this.offsetX + 0.5,
+          y: this.offsetY + RAD_3_OVER_2,
+        },
       },
       !this.downLeftCell && {
-        x: this.offsetX - 0.5,
-        y: this.offsetY + RAD_3_OVER_2,
+        offset: 210,
+        pos: {
+          x: this.offsetX - 0.5,
+          y: this.offsetY + RAD_3_OVER_2,
+        },
       },
-      !this.leftCell && { x: this.offsetX - 1, y: this.offsetY },
+      !this.leftCell && {
+        offset: 270,
+        pos: {
+          x: this.offsetX - 1,
+          y: this.offsetY,
+        },
+      },
     ]);
   }
 

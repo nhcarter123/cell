@@ -10,6 +10,7 @@ export class FatCell extends Cell {
       mass: MASS,
       health: 5,
       imageKey: EImageKey.FatCell,
+      isBody: true,
     });
   }
 }

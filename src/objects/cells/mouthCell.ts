@@ -20,6 +20,7 @@ export class MouthCell extends Cell {
       mass: MASS,
       health: 8,
       imageKey: EImageKey.MouthCell,
+      isBody: false,
     });
 
     this.currentAttackCoolDown = 0;

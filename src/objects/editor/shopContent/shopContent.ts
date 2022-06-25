@@ -1,15 +1,23 @@
 import { EImageKey } from "../../../scenes/gameScene";
+import { ECellType } from "../../../events/eventCenter";
 
 export class ShopContent {
-  public readonly tier: number;
-  public readonly cost: number;
-  public obj?: Phaser.GameObjects.Image;
+  private readonly tier: number;
+  private readonly cost: number;
+  private obj?: Phaser.GameObjects.Image;
   private readonly imageKey: EImageKey;
+  private readonly type: ECellType;
 
-  constructor(tier: number, cost: number, imageKey: EImageKey) {
+  constructor(
+    tier: number,
+    cost: number,
+    imageKey: EImageKey,
+    type: ECellType
+  ) {
     this.imageKey = imageKey;
     this.tier = tier;
     this.cost = cost;
+    this.type = type;
   }
 
   create(
@@ -20,7 +28,7 @@ export class ShopContent {
   ) {
     this.obj = add
       .image(x, y, this.imageKey)
-      .on("pointerdown", () => onBuy(this.cost));
+      .on("pointerdown", () => onBuy(this.cost, this.type));
     this.setVisible(false);
   }
 

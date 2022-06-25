@@ -1,13 +1,18 @@
 import GameScene, { RADIUS, SPACING } from "./gameScene";
-import { Organism } from "../objects/organism";
-import { BrainCell } from "../objects/cells/brainCell";
+import { IAvailableSpot, Organism } from "../objects/organism";
 import { EDITOR_WIDTH, ESceneKey } from "../index";
 import { lerp, pointDist } from "../helpers/math";
 import { Vector } from "matter";
-import { Cell } from "../objects/cells/cell";
-import eventsCenter, { EBuyCell, EEvent } from "../events/eventCenter";
+import eventsCenter, { EEvent } from "../events/eventCenter";
 import { screenHeight, screenWidth } from "../config";
-import { MouthCell } from "../objects/cells/mouthCell";
+import DegToRad = Phaser.Math.DegToRad;
+import editorState from "../context/editorState";
+import {
+  createCellFromType,
+  loadOrganism,
+  saveData,
+  saveOrganism,
+} from "../context/saveData";
 
 const availableSpotColor = Phaser.Display.Color.ValueToColor("#dedede").color;
 
@@ -15,33 +20,31 @@ export default class Editor extends GameScene {
   private organism: Organism;
   private zoom: number;
   private targetZoom: number;
-  private availableSpots: Vector[];
+  private availableSpots: IAvailableSpot[];
   private availableSpotGraphics?: Phaser.GameObjects.Graphics;
-  private mouseCell?: Cell;
   private offset: Vector;
-  private buyingType: EBuyCell;
   private scrollX: number;
   private scrollY: number;
   private targetScrollX: number;
   private targetScrollY: number;
+  private heldCellDuration: number;
 
   constructor() {
     super(ESceneKey.Editor);
 
     this.zoom = 1;
     this.targetZoom = this.zoom;
-    const cells = [new BrainCell(0, 0)];
 
-    this.organism = new Organism(true, 0, 0, cells);
+    this.organism = loadOrganism(saveData.organism);
     this.offset = { x: 0, y: 0 };
 
-    this.buyingType = EBuyCell.MouthCell;
     this.availableSpots = [];
 
     this.scrollX = 0;
     this.scrollY = 0;
     this.targetScrollX = 0;
     this.targetScrollY = 0;
+    this.heldCellDuration = 0;
   }
 
   create() {
@@ -53,13 +56,32 @@ export default class Editor extends GameScene {
     this.cameras.main.fadeIn(1000);
     this.setCamera();
 
-    eventsCenter.on(EEvent.BuyCell, (type: EBuyCell) => {
-      this.buyingType = type;
+    eventsCenter.on(EEvent.BuyCell, () => {
+      this.heldCellDuration = 0;
       this.addBuyingCell();
+    });
+    eventsCenter.on(EEvent.Continue, () => {
+      console.log(this.organism);
+      saveData.organism = saveOrganism(this.organism);
+      console.log(saveData.organism);
+
+      this.scene.sleep(ESceneKey.EditorGUI);
+      this.scene.switch(ESceneKey.Ocean);
     });
 
     this.input.on("wheel", (_1: any, _2: any, _3: any, deltaY: number) => {
       this.targetZoom += deltaY / 150;
+    });
+
+    const rKey = this.input.keyboard.addKey("R");
+
+    rKey.on("down", () => {
+      editorState.rotationIndex += 1;
+    });
+
+    this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => {
+      eventsCenter.off(EEvent.BuyCell);
+      eventsCenter.off(EEvent.Continue);
     });
   }
 
@@ -88,29 +110,49 @@ export default class Editor extends GameScene {
       -screenHeight / 2 + this.scrollY
     );
 
-    if (this.mouseCell?.image) {
-      const hoveredSpot = this.getHoveredSpot();
-      const mousePos = this.getMousePos();
+    let clicked = false;
+    if (this.input.mousePointer.leftButtonDown()) {
+      if (!this.leftButtonPressed) {
+        this.leftButtonPressed = true;
+        clicked = true;
+      }
+    }
 
-      if (hoveredSpot) {
-        this.mouseCell.image.x = hoveredSpot.x * SPACING;
-        this.mouseCell.image.y = hoveredSpot.y * SPACING;
+    if (editorState.mouseCell?.image) {
+      this.heldCellDuration += 1;
+      const inEditor = this.input.mousePointer.x < EDITOR_WIDTH;
 
-        if (this.input.mousePointer.leftButtonDown()) {
-          if (!this.leftButtonPressed) {
-            this.leftButtonPressed = true;
-            this.mouseCell.offsetX = hoveredSpot.x;
-            this.mouseCell.offsetY = hoveredSpot.y;
-            this.organism.cells.push(this.mouseCell);
+      if (clicked && inEditor && this.heldCellDuration > 60) {
+        this.sellCell();
+      } else {
+        const hoveredSpot = this.getHoveredSpot();
+        const mousePos = this.getMousePos();
+
+        if (hoveredSpot) {
+          editorState.mouseCell.image.x = hoveredSpot.pos.x * SPACING;
+          editorState.mouseCell.image.y = hoveredSpot.pos.y * SPACING;
+          editorState.mouseCell.angleOffset =
+            hoveredSpot.availableOffsets[
+              editorState.rotationIndex % hoveredSpot.availableOffsets.length
+            ];
+          editorState.mouseCell.image.alpha = 1;
+          editorState.mouseCell.image.rotation = DegToRad(
+            editorState.mouseCell.angleOffset
+          );
+
+          if (clicked) {
+            editorState.mouseCell.offsetX = hoveredSpot.pos.x;
+            editorState.mouseCell.offsetY = hoveredSpot.pos.y;
+            this.organism.cells.push(editorState.mouseCell);
             this.organism.syncCells();
             this.setCamera();
-
             this.addBuyingCell();
           }
+        } else {
+          editorState.mouseCell.image.x = mousePos.x;
+          editorState.mouseCell.image.y = mousePos.y;
+          editorState.mouseCell.image.alpha = 0.5;
         }
-      } else {
-        this.mouseCell.image.x = mousePos.x;
-        this.mouseCell.image.y = mousePos.y;
       }
     }
 
@@ -127,14 +169,14 @@ export default class Editor extends GameScene {
     this.targetScrollY = this.offset.y * SPACING;
   }
 
-  getHoveredSpot(): Vector | undefined {
-    if (this.mouseCell?.image) {
+  getHoveredSpot(): IAvailableSpot | undefined {
+    if (editorState.mouseCell?.image) {
       const mousePos = this.getMousePos();
 
       for (const spot of this.availableSpots) {
         const dist = pointDist(
-          spot.x * SPACING,
-          spot.y * SPACING,
+          spot.pos.x * SPACING,
+          spot.pos.y * SPACING,
           mousePos.x,
           mousePos.y
         );
@@ -153,29 +195,34 @@ export default class Editor extends GameScene {
 
       this.availableSpots.forEach((spot) => {
         this.availableSpotGraphics?.fillCircle(
-          spot.x * SPACING,
-          spot.y * SPACING,
+          spot.pos.x * SPACING,
+          spot.pos.y * SPACING,
           RADIUS
         );
       });
     }
   }
 
-  getCellFromType(): Cell {
-    const offset = this.getMousePos();
-
-    switch (this.buyingType) {
-      case EBuyCell.MouthCell:
-        return new MouthCell(offset.x / SPACING, offset.y / SPACING);
-    }
-  }
-
   addBuyingCell() {
-    const cell = this.getCellFromType();
+    const offset = this.getMousePos();
+    const cell = createCellFromType(
+      editorState.type,
+      offset.x / SPACING,
+      offset.y / SPACING
+    );
     cell.create(this.organism, this.add);
-    this.mouseCell = cell;
+    editorState.mouseCell = cell;
 
     this.availableSpots = this.organism.getAvailableSpots();
     this.drawAvailableSpots();
+  }
+
+  sellCell() {
+    if (editorState.mouseCell?.image) {
+      editorState.mouseCell.image.destroy();
+      editorState.mouseCell = undefined;
+      this.availableSpots = [];
+      this.drawAvailableSpots();
+    }
   }
 }

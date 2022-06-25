@@ -6,13 +6,12 @@ import {
   pointDirX,
   pointDirY,
   pointDist,
-  toRad,
 } from "../helpers/math";
 import { compact } from "lodash";
 import { DAMPING, STIFFNESS } from "../scenes/gameScene";
 import { Vector } from "matter";
-import { uniqBy } from "lodash";
 import Ocean from "../scenes/ocean";
+import DegToRad = Phaser.Math.DegToRad;
 
 interface IBound {
   min: number;
@@ -22,6 +21,11 @@ interface IBound {
 interface IBounds {
   x: IBound;
   y: IBound;
+}
+
+export interface IAvailableSpot {
+  pos: Vector;
+  availableOffsets: number[];
 }
 
 export class Organism {
@@ -191,10 +195,11 @@ export class Organism {
           );
 
           if (cell.image) {
-            cell.image.rotation = toRad(rotation - cellAndAngle.angle + 90);
+            cell.image.rotation = DegToRad(
+              rotation - cellAndAngle.angle + 90 + cell.angleOffset
+            );
           }
 
-          // console.log(angleDiff(rotation - cellAndAngle.angle, targetDir));
           angTotal += angleDiff(rotation - cellAndAngle.angle, targetDir);
         }
       }
@@ -205,7 +210,6 @@ export class Organism {
       y: yTotal / totalCells,
     };
     this.avgAngle = angTotal / totalCells;
-    // console.log(org.avgAngle);
   }
 
   moveTowards(targetDir: number, matter: Phaser.Physics.Matter.MatterPhysics) {
@@ -294,10 +298,28 @@ export class Organism {
     this.setConnected();
   }
 
-  getAvailableSpots(): Vector[] {
-    return uniqBy(
-      this.cells.flatMap((cell) => cell.getSurroundingAvailableSpots()),
-      (vector) => `${vector.x}${vector.y.toFixed(4)}`
-    );
+  getAvailableSpots(decs = 4): IAvailableSpot[] {
+    const storedSpots: IAvailableSpot[] = [];
+
+    this.cells
+      .flatMap((cell) => cell.getSurroundingAvailableSpots())
+      .forEach((spot) => {
+        const duplicateSpot = storedSpots.find(
+          (storedSpot) =>
+            storedSpot.pos.x.toFixed(decs) === spot.pos.x.toFixed(decs) &&
+            storedSpot.pos.y.toFixed(decs) === spot.pos.y.toFixed(decs)
+        );
+
+        if (duplicateSpot) {
+          duplicateSpot.availableOffsets.push(spot.offset);
+        } else {
+          storedSpots.push({
+            pos: spot.pos,
+            availableOffsets: [spot.offset],
+          });
+        }
+      });
+
+    return storedSpots;
   }
 }

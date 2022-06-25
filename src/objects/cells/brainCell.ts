@@ -10,6 +10,7 @@ export class BrainCell extends Cell {
       mass: MASS,
       health: 5,
       imageKey: EImageKey.BrainCell,
+      isBody: true,
     });
   }
 }
