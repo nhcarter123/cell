@@ -17,10 +17,12 @@ export class Tab extends Button {
   private readonly imageKey: EImageKey;
   private image?: Phaser.GameObjects.Image;
   public contents: ShopContent[];
+  public scale: number;
 
   constructor(imageKey: EImageKey, contents: ShopContent[]) {
     super();
 
+    this.scale = 0.75;
     this.imageKey = imageKey;
     this.contents = contents;
   }
@@ -44,7 +46,7 @@ export class Tab extends Button {
       height / 2,
       this.imageKey
     );
-    this.image.scale = 0.75;
+    this.image.scale = this.scale;
 
     if (onBuy) {
       this.contents.forEach((content, index) => {

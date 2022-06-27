@@ -10,6 +10,7 @@ import {
 import { Vector } from "matter";
 import { floatEquals } from "../../helpers/math";
 import DegToRad = Phaser.Math.DegToRad;
+import RadToDeg = Phaser.Math.RadToDeg;
 
 type TCellOverrides = Partial<
   Pick<
@@ -22,6 +23,7 @@ type TCellOverrides = Partial<
     | "imageKey"
     | "isBody"
     | "angleOffset"
+    | "imageOffset"
   >
 >;
 
@@ -62,6 +64,7 @@ export class Cell {
   public readonly mass: number;
   public readonly color: number;
   public readonly isBody: boolean;
+  public readonly imageOffset: Vector;
   public angleOffset: number;
 
   public health: number;
@@ -79,6 +82,10 @@ export class Cell {
     this.color = overrides.color !== undefined ? overrides.color : 0xffffff;
     this.isBody = overrides.isBody !== undefined ? overrides.isBody : true;
     this.mass = overrides.mass !== undefined ? overrides.mass : 1;
+    this.imageOffset =
+      overrides.imageOffset !== undefined
+        ? overrides.imageOffset
+        : { x: 0.5, y: 0.5 };
     this.angleOffset =
       overrides.angleOffset !== undefined ? overrides.angleOffset : 0;
     this.imageKey =
@@ -103,16 +110,7 @@ export class Cell {
     this.organism = org;
 
     if (matter) {
-      this.obj = matter.add.circle(
-        this.organism.avgPosition.x + this.offsetX * SPACING,
-        this.organism.avgPosition.y + this.offsetY * SPACING,
-        RADIUS,
-        {
-          restitution: 0,
-          mass: this.mass,
-          // isStatic: true,
-        }
-      );
+      this.createBody(matter, org);
     }
 
     this.image = add.image(
@@ -121,11 +119,46 @@ export class Cell {
       this.imageKey
     );
     this.image.scale = 0.65;
-    this.image.rotation = DegToRad(this.angleOffset);
+    this.image.setOrigin(this.imageOffset.x, this.imageOffset.y);
 
     this.healthBar = new HealthBar(add);
 
     this.setChildrenCells();
+  }
+
+  createBody(matter: Phaser.Physics.Matter.MatterPhysics, org: Organism) {
+    // this.obj = matter.add.circle(
+    //   org.avgPosition.x + this.offsetX * SPACING,
+    //   org.avgPosition.y + this.offsetY * SPACING,
+    //   RADIUS,
+    //   {
+    //     restitution: 0,
+    //     mass: this.mass,
+    //   }
+    // );
+    // this.obj = matter.add.polygon(
+    //   org.avgPosition.x + this.offsetX * SPACING,
+    //   org.avgPosition.y + this.offsetY * SPACING,
+    //   6,
+    //   RADIUS,
+    //   {
+    //     restitution: 0,
+    //     mass: this.mass,
+    //     // angle: DegToRad(90),
+    //   }
+    // );
+    this.obj = matter.add.polygon(
+      org.avgPosition.x + this.offsetX * SPACING,
+      org.avgPosition.y + this.offsetY * SPACING,
+      6,
+      RADIUS,
+      {
+        restitution: 0,
+        mass: this.mass,
+        // isStatic: true,
+        // angle: DegToRad(90),
+      }
+    );
   }
 
   getSurroundingCells(): Cell[] {
@@ -269,6 +302,10 @@ export class Cell {
     if (this.image) {
       this.image.x = this.obj?.position.x || 0;
       this.image.y = this.obj?.position.y || 0;
+
+      if (this.obj) {
+        this.image.angle = RadToDeg(this.obj.angle);
+      }
     }
 
     // show health bar when life changes

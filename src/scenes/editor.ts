@@ -48,7 +48,7 @@ export default class Editor extends GameScene {
   }
 
   create() {
-    this.organism.create(this.add, this.matter);
+    this.organism.create(this.add);
 
     this.availableSpotGraphics = this.add.graphics();
 

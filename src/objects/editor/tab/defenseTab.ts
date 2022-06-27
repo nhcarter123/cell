@@ -1,14 +1,11 @@
 import { Tab } from "./tab";
 import { EImageKey } from "../../../scenes/gameScene";
-import { MouthCellContent } from "../shopContent/mouthCellContent";
+import { SpikeCellContent } from "../shopContent/spikeCellContent";
 
 export class DefenseTab extends Tab {
   constructor() {
-    super(EImageKey.FatCell, [
-      new MouthCellContent(),
-      new MouthCellContent(),
-      new MouthCellContent(),
-      new MouthCellContent(),
-    ]);
+    super(EImageKey.SpikeCell, [new SpikeCellContent()]);
+
+    this.scale = 0.4;
   }
 }

@@ -1,5 +1,6 @@
 import DegToRad = Phaser.Math.DegToRad;
 import RadToDeg = Phaser.Math.RadToDeg;
+import { Vector } from "matter";
 
 export const lerp = (start: number, end: number, amt: number) =>
   (1 - amt) * start + amt * end;
@@ -23,8 +24,34 @@ export const pointDist = (
   y2: number
 ): number => Math.sqrt(Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2));
 
-export const angleDiff = (facingAngle: number, angleOfTarget: number): number =>
-  ((facingAngle - angleOfTarget + 180 + 360) % 360) - 180;
+export const angleDiff = (
+  facingAngle: number,
+  angleOfTarget: number
+): number => {
+  let diff = ((facingAngle - angleOfTarget + 180 + 360) % 360) - 180;
+
+  if (diff < -180) {
+    diff += 360;
+  }
+
+  return diff;
+};
 
 export const floatEquals = (f1: number, f2: number, depth = 4): boolean =>
   f1.toFixed(depth) === f2.toFixed(depth);
+
+export const rotateVector = (
+  origin: Vector,
+  point: Vector,
+  angle: number
+): Vector => {
+  const radians = DegToRad(angle),
+    cos = Math.cos(radians),
+    sin = Math.sin(radians),
+    nx = cos * (point.x - origin.x) + sin * (point.y - origin.y) + origin.x,
+    ny = cos * (point.y - origin.y) - sin * (point.x - origin.x) + origin.y;
+  return {
+    x: nx,
+    y: ny,
+  };
+};

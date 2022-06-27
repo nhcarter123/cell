@@ -1,8 +1,8 @@
-import { pointDir, pointDist } from "../helpers/math";
+import { angleDiff, pointDir, pointDist } from "../helpers/math";
 import { Organism } from "../objects/organism";
 import { Cell } from "../objects/cells/cell";
 import { compact } from "lodash";
-import GameScene from "./gameScene";
+import GameScene, { EImageKey } from "./gameScene";
 import { ESceneKey } from "../index";
 import { loadOrganism, saveData } from "../context/saveData";
 import star from "../savedOrganisms/star";
@@ -28,7 +28,7 @@ export default class Ocean extends GameScene {
           },
           debug: {
             // showJoint: false,
-            showBody: false,
+            // showBody: false,
           },
         },
       },
@@ -50,7 +50,7 @@ export default class Ocean extends GameScene {
       }),
     ];
 
-    this.matter.add.rectangle(1000, 500, 200, 150, {
+    this.matter.add.rectangle(400, 200, 200, 150, {
       restitution: 0.9,
       isStatic: true,
     });
@@ -105,22 +105,19 @@ export default class Ocean extends GameScene {
     }
 
     this.organisms.forEach((org) => {
-      let targetDir = 0;
-
-      if (org.isPlayer) {
-        targetDir = pointDir(
+      if (this.input.mousePointer.leftButtonDown() && org.isPlayer) {
+        org.targetDir = pointDir(
           org.avgPosition.x,
           org.avgPosition.y,
           mouseX,
           mouseY
         );
+
+        org.moveTowards(this.matter);
       }
 
-      org.calcCenterOfMass(targetDir);
-
-      if (this.input.mousePointer.leftButtonDown() && org.isPlayer) {
-        org.moveTowards(targetDir, this.matter);
-      }
+      org.calcCenterOfMass();
+      // org.simulateMovement(this.matter);
     });
   }
 

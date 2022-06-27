@@ -4,7 +4,7 @@ import { MouthCell } from "../objects/cells/mouthCell";
 import { FatCell } from "../objects/cells/fatCell";
 import { BrainCell } from "../objects/cells/brainCell";
 import { Organism } from "../objects/organism";
-import star from "../savedOrganisms/star";
+import { SpikeCell } from "../objects/cells/spikeCell";
 
 export type TSavedCell = Pick<Cell, "offsetX" | "offsetY" | "angleOffset">;
 type TSavedOrganism = Pick<Organism, "isPlayer">;
@@ -28,7 +28,15 @@ export const saveData: ISaveData = {
     isPlayer: true,
     x: 0,
     y: 0,
-    cells: star,
+    cells: [
+      {
+        type: ECellType.BrainCell,
+        angleOffset: 0,
+        offsetX: 0,
+        offsetY: 0,
+      },
+    ],
+    // cells: star,
   },
 };
 
@@ -43,6 +51,8 @@ export const createCellFromType = (
       return new MouthCell(saveData);
     case ECellType.FatCell:
       return new FatCell(saveData);
+    case ECellType.SpikeCell:
+      return new SpikeCell(saveData);
   }
 };
 
@@ -55,6 +65,9 @@ const getTypeFromCell = (cell: Cell): ECellType => {
   }
   if (cell instanceof BrainCell) {
     return ECellType.BrainCell;
+  }
+  if (cell instanceof SpikeCell) {
+    return ECellType.SpikeCell;
   }
 
   return ECellType.FatCell;

@@ -4,11 +4,6 @@ import { MouthCellContent } from "../shopContent/mouthCellContent";
 
 export class MouthTab extends Tab {
   constructor() {
-    super(EImageKey.MouthCell, [
-      new MouthCellContent(),
-      new MouthCellContent(),
-      new MouthCellContent(),
-      new MouthCellContent(),
-    ]);
+    super(EImageKey.MouthCell, [new MouthCellContent()]);
   }
 }

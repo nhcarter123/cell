@@ -7,6 +7,7 @@ export class ShopContent {
   private obj?: Phaser.GameObjects.Image;
   private readonly imageKey: EImageKey;
   private readonly type: ECellType;
+  public scale: number;
 
   constructor(
     tier: number,
@@ -18,6 +19,7 @@ export class ShopContent {
     this.tier = tier;
     this.cost = cost;
     this.type = type;
+    this.scale = 1;
   }
 
   create(
@@ -29,6 +31,9 @@ export class ShopContent {
     this.obj = add
       .image(x, y, this.imageKey)
       .on("pointerdown", () => onBuy(this.cost, this.type));
+
+    this.obj.scale = this.scale;
+
     this.setVisible(false);
   }
 
