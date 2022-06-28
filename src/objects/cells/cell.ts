@@ -9,7 +9,6 @@ import {
 } from "../../scenes/gameScene";
 import { Vector } from "matter";
 import { floatEquals } from "../../helpers/math";
-import DegToRad = Phaser.Math.DegToRad;
 import RadToDeg = Phaser.Math.RadToDeg;
 
 type TCellOverrides = Partial<
@@ -24,6 +23,7 @@ type TCellOverrides = Partial<
     | "isBody"
     | "angleOffset"
     | "imageOffset"
+    | "occupiedSpots"
   >
 >;
 
@@ -37,7 +37,7 @@ interface ICellLink {
   link: MatterJS.ConstraintType;
 }
 
-interface ISpotAndOffset {
+export interface ISpotAndOffset {
   pos: Vector;
   offset: number;
 }
@@ -71,6 +71,7 @@ export class Cell {
   public maxHealth: number;
   public previousHealth: number;
   public showHealthBar: number;
+  public occupiedSpots: Vector[];
 
   public connected: boolean;
   public beenScanned: boolean;
@@ -80,6 +81,10 @@ export class Cell {
     this.offsetX = overrides.offsetX !== undefined ? overrides.offsetX : 0;
     this.offsetY = overrides.offsetY !== undefined ? overrides.offsetY : 0;
     this.color = overrides.color !== undefined ? overrides.color : 0xffffff;
+    this.occupiedSpots =
+      overrides.occupiedSpots !== undefined
+        ? overrides.occupiedSpots
+        : [{ x: 0, y: 0 }];
     this.isBody = overrides.isBody !== undefined ? overrides.isBody : true;
     this.mass = overrides.mass !== undefined ? overrides.mass : 1;
     this.imageOffset =

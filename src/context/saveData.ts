@@ -21,9 +21,11 @@ interface ISavedOrganism extends TSavedOrganism {
 
 interface ISaveData {
   organism: ISavedOrganism;
+  direction: number;
 }
 
 export const saveData: ISaveData = {
+  direction: 90,
   organism: {
     isPlayer: true,
     x: 0,
@@ -38,6 +40,23 @@ export const saveData: ISaveData = {
     ],
     // cells: star,
   },
+};
+
+export const updateFacingDirection = () => {
+  if (
+    saveData.direction === 120 ||
+    saveData.direction === 180 ||
+    saveData.direction === 300 ||
+    saveData.direction === 0
+  ) {
+    saveData.direction += 60;
+  } else {
+    saveData.direction += 30;
+  }
+
+  if (saveData.direction >= 360) {
+    saveData.direction -= 360;
+  }
 };
 
 export const createCellFromType = (

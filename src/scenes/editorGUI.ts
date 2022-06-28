@@ -1,4 +1,4 @@
-import GameScene from "./gameScene";
+import GameScene, { EImageKey } from "./gameScene";
 import { screenHeight, screenWidth } from "../config";
 import { EDITOR_WIDTH, ESceneKey } from "../index";
 import {
@@ -13,6 +13,7 @@ import { BodyTab } from "../objects/editor/tab/bodyTab";
 import eventsCenter, { ECellType, EEvent } from "../events/eventCenter";
 import { Button } from "../objects/editor/tab/button";
 import editorState from "../context/editorState";
+import { saveData, updateFacingDirection } from "../context/saveData";
 
 const TAB_HEIGHT = 80;
 
@@ -20,6 +21,7 @@ export default class EditorGUI extends GameScene {
   private panel?: Phaser.GameObjects.Rectangle;
   private tabIndex: number;
   private continueButton: Button;
+  private arrow?: Phaser.GameObjects.Image;
   private tabs: Tab[];
 
   constructor() {
@@ -33,6 +35,13 @@ export default class EditorGUI extends GameScene {
   create() {
     const continueButtonWidth = 140;
     const continueButtonHeight = 60;
+
+    this.arrow = this.add
+      .image(screenWidth - 75, 80, EImageKey.Arrow)
+      .setInteractive()
+      .on("pointerdown", updateFacingDirection);
+
+    this.arrow.scale = 0.15;
 
     this.continueButton.create(
       this.add,
@@ -87,6 +96,9 @@ export default class EditorGUI extends GameScene {
   update(time: number, delta: number) {
     super.update(time, delta);
 
+    if (this.arrow) {
+      this.arrow.angle = saveData.direction;
+    }
     // const currentTab = this.tabs.find((tab) => tab.id === this.currentTab);
     // if (currentTab) {
     //   currentTab.background.fillColor = hoveredTabColor;

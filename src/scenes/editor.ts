@@ -1,4 +1,4 @@
-import GameScene, { RADIUS, SPACING } from "./gameScene";
+import GameScene, { EImageKey, RADIUS, SPACING } from "./gameScene";
 import { IAvailableSpot, Organism } from "../objects/organism";
 import { EDITOR_WIDTH, ESceneKey } from "../index";
 import { lerp, pointDist } from "../helpers/math";
@@ -13,8 +13,10 @@ import {
   saveData,
   saveOrganism,
 } from "../context/saveData";
+import { Cell } from "../objects/cells/cell";
 
 const availableSpotColor = Phaser.Display.Color.ValueToColor("#dedede").color;
+const hoveredCellColor = Phaser.Display.Color.ValueToColor("#e0e0e0").color;
 
 export default class Editor extends GameScene {
   private organism: Organism;
@@ -28,6 +30,8 @@ export default class Editor extends GameScene {
   private targetScrollX: number;
   private targetScrollY: number;
   private heldCellDuration: number;
+  private hoveredCell?: Cell;
+  private pipelineInstance?: Function | Phaser.Plugins.BasePlugin;
 
   constructor() {
     super(ESceneKey.Editor);
@@ -48,6 +52,8 @@ export default class Editor extends GameScene {
   }
 
   create() {
+    this.pipelineInstance = this.plugins.get("rexOutlinePipeline");
+
     this.organism.create(this.add);
 
     this.availableSpotGraphics = this.add.graphics();
@@ -116,6 +122,8 @@ export default class Editor extends GameScene {
       }
     }
 
+    const mousePos = this.getMousePos();
+
     if (editorState.mouseCell?.image) {
       this.heldCellDuration += 1;
       const inEditor = this.input.mousePointer.x < EDITOR_WIDTH;
@@ -123,8 +131,7 @@ export default class Editor extends GameScene {
       if (clicked && inEditor && this.heldCellDuration > 60) {
         this.sellCell();
       } else {
-        const hoveredSpot = this.getHoveredSpot();
-        const mousePos = this.getMousePos();
+        const hoveredSpot = this.getHoveredSpot(mousePos.x, mousePos.y);
 
         if (hoveredSpot) {
           editorState.mouseCell.image.x = hoveredSpot.pos.x * SPACING;
@@ -152,6 +159,27 @@ export default class Editor extends GameScene {
           editorState.mouseCell.image.alpha = 0.5;
         }
       }
+    } else {
+      const hoveredCell = this.getHoveredCell(mousePos.x, mousePos.y);
+
+      if (hoveredCell !== this.hoveredCell) {
+        if (this.pipelineInstance) {
+          if (hoveredCell) {
+            this.pipelineInstance.add(hoveredCell.image, {
+              thickness: 6,
+              outlineColor: hoveredCellColor,
+            });
+          } else if (this.hoveredCell?.image) {
+            this.pipelineInstance.remove(this.hoveredCell.image);
+          }
+        }
+      }
+
+      this.hoveredCell = hoveredCell;
+
+      // if (this.hoveredCell?.image) {
+      //   this.hoveredCell.image.setPostPipeline(OutlinePostFx);
+      // }
     }
 
     if (this.input.mousePointer.leftButtonReleased()) {
@@ -167,21 +195,27 @@ export default class Editor extends GameScene {
     this.targetScrollY = this.offset.y * SPACING;
   }
 
-  getHoveredSpot(): IAvailableSpot | undefined {
-    if (editorState.mouseCell?.image) {
-      const mousePos = this.getMousePos();
+  getHoveredSpot(x: number, y: number): IAvailableSpot | undefined {
+    for (const spot of this.availableSpots) {
+      const dist = pointDist(spot.pos.x * SPACING, spot.pos.y * SPACING, x, y);
 
-      for (const spot of this.availableSpots) {
-        const dist = pointDist(
-          spot.pos.x * SPACING,
-          spot.pos.y * SPACING,
-          mousePos.x,
-          mousePos.y
-        );
+      if (dist < RADIUS) {
+        return spot;
+      }
+    }
+  }
 
-        if (dist < RADIUS) {
-          return spot;
-        }
+  getHoveredCell(x: number, y: number): Cell | undefined {
+    for (const cell of this.organism.cells) {
+      const dist = pointDist(
+        cell.offsetX * SPACING,
+        cell.offsetY * SPACING,
+        x,
+        y
+      );
+
+      if (dist < RADIUS) {
+        return cell;
       }
     }
   }
@@ -210,7 +244,7 @@ export default class Editor extends GameScene {
     cell.create(this.organism, this.add);
     editorState.mouseCell = cell;
 
-    this.availableSpots = this.organism.getAvailableSpots();
+    this.availableSpots = this.organism.getAvailableSpots(cell.occupiedSpots);
     this.drawAvailableSpots();
   }
 

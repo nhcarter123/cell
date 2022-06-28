@@ -37,15 +37,12 @@ export const angleDiff = (
   return diff;
 };
 
-export const floatEquals = (f1: number, f2: number, depth = 4): boolean =>
-  f1.toFixed(depth) === f2.toFixed(depth);
-
 export const rotateVector = (
   origin: Vector,
   point: Vector,
   angle: number
 ): Vector => {
-  const radians = DegToRad(angle),
+  const radians = DegToRad(180 - angle),
     cos = Math.cos(radians),
     sin = Math.sin(radians),
     nx = cos * (point.x - origin.x) + sin * (point.y - origin.y) + origin.x,
@@ -54,4 +51,14 @@ export const rotateVector = (
     x: nx,
     y: ny,
   };
+};
+
+export const floatEquals = (
+  f1: number,
+  f2: number,
+  accuracy = 0.0001
+): boolean => Math.abs(f1 - f2) < accuracy;
+
+export const pointsEqual = (v1: Vector, v2: Vector): boolean => {
+  return floatEquals(v1.x, v2.x) && floatEquals(v1.y, v2.y);
 };

@@ -1,11 +1,13 @@
 import { BrainCell } from "./cells/brainCell";
-import { Cell } from "./cells/cell";
+import { Cell, ISpotAndOffset } from "./cells/cell";
 import {
   angleDiff,
+  floatEquals,
   lengthDirX,
   lengthDirY,
   pointDir,
   pointDist,
+  pointsEqual,
   rotateVector,
 } from "../helpers/math";
 import { compact } from "lodash";
@@ -13,6 +15,7 @@ import { DAMPING, RADIUS, SPACING, STIFFNESS } from "../scenes/gameScene";
 import { Vector } from "matter";
 import Ocean from "../scenes/ocean";
 import RadToDeg = Phaser.Math.RadToDeg;
+import { saveData } from "../context/saveData";
 
 interface IBound {
   min: number;
@@ -87,107 +90,48 @@ export class Organism {
 
         linkableCells.forEach((c) => {
           if (c.health > 0) {
-            const isDouble = cell.isDangly(c) || c.isDangly(cell);
-
-            // this.createLink(matter, cell, c, isDouble);
-            this.createLink(matter, cell, c, false);
+            this.createLink(matter, cell, c);
           }
         });
       }
     }
   }
 
-  createLink(
-    matter: Phaser.Physics.Matter.MatterPhysics,
-    c1: Cell,
-    c2: Cell,
-    isDouble: boolean
-  ) {
+  createLink(matter: Phaser.Physics.Matter.MatterPhysics, c1: Cell, c2: Cell) {
     if (c1.obj && c2.obj) {
-      if (isDouble) {
-        const dir = pointDir(
-          c1.obj.position.x,
-          c1.obj.position.y,
-          c2.obj.position.x,
-          c2.obj.position.y
-        );
-        const offset1 = {
-          x: lengthDirX(RADIUS, dir + 90),
-          y: lengthDirY(RADIUS, dir + 90),
-        };
-        const offset2 = {
-          x: lengthDirX(RADIUS, dir - 90),
-          y: lengthDirY(RADIUS, dir - 90),
-        };
-        const dist = pointDist(
-          c1.obj.position.x + offset1.x,
-          c1.obj.position.y + offset1.y,
-          c2.obj.position.x + offset2.x,
-          c2.obj.position.y + offset2.y
-        );
+      const offset1 = rotateVector(
+        { x: 0, y: 0 },
+        { x: c1.imageOffset.x - 0.5, y: c1.imageOffset.y - 0.5 },
+        c1.angleOffset
+      );
 
-        const link1 = matter.add.constraint(c1.obj, c2.obj, dist, STIFFNESS, {
-          damping: DAMPING,
-          pointA: offset1,
-          pointB: offset2,
-        });
-        const link2 = matter.add.constraint(c1.obj, c2.obj, dist, STIFFNESS, {
-          damping: DAMPING,
-          pointA: offset2,
-          pointB: offset1,
-        });
+      const offset2 = rotateVector(
+        { x: 0, y: 0 },
+        { x: c2.imageOffset.x - 0.5, y: c2.imageOffset.y - 0.5 },
+        c2.angleOffset
+      );
 
-        c1.links.push({
-          cell: c2,
-          link: link1,
-        });
-        c1.links.push({
-          cell: c2,
-          link: link2,
-        });
-        c2.links.push({
-          cell: c1,
-          link: link1,
-        });
-        c2.links.push({
-          cell: c1,
-          link: link2,
-        });
-      } else {
-        const offset1 = rotateVector(
-          { x: 0, y: 0 },
-          { x: c1.imageOffset.x - 0.5, y: c1.imageOffset.y - 0.5 },
-          180 - c1.angleOffset
-        );
+      const link = matter.add.constraint(c1.obj, c2.obj, SPACING, STIFFNESS, {
+        damping: DAMPING,
+        pointA: {
+          x: -offset1.x * SPACING,
+          y: -offset1.y * SPACING,
+        },
+        pointB: {
+          x: -offset2.x * SPACING,
+          y: -offset2.y * SPACING,
+        },
+      });
 
-        const offset2 = rotateVector(
-          { x: 0, y: 0 },
-          { x: c2.imageOffset.x - 0.5, y: c2.imageOffset.y - 0.5 },
-          180 - c2.angleOffset
-        );
+      c1.links.push({
+        cell: c2,
+        link,
+      });
 
-        const link = matter.add.constraint(c1.obj, c2.obj, SPACING, STIFFNESS, {
-          damping: DAMPING,
-          pointA: {
-            x: -offset1.x * SPACING,
-            y: -offset1.y * SPACING,
-          },
-          pointB: {
-            x: -offset2.x * SPACING,
-            y: -offset2.y * SPACING,
-          },
-        });
-
-        c1.links.push({
-          cell: c2,
-          link,
-        });
-
-        c2.links.push({
-          cell: c1,
-          link,
-        });
-      }
+      c2.links.push({
+        cell: c1,
+        link,
+      });
     }
   }
 
@@ -272,7 +216,10 @@ export class Organism {
           // cell.obj.torque = 0.005 * diff - cell.obj.angularVelocity;
           cell.obj.torque = 0.005 * diff;
 
-          angTotal += angleDiff(rotation - cellAndAngle.angle, this.targetDir);
+          angTotal += angleDiff(
+            rotation - cellAndAngle.angle + saveData.direction - 90,
+            this.targetDir
+          );
         }
       }
     }
@@ -318,6 +265,12 @@ export class Organism {
     // if (this.isPlayer) {
     //   this.currentAngle -= angleDiff(this.currentAngle, targetDir) / 100;
     // }
+    // if (this.brain?.obj) {
+    //   this.avgPosition = {
+    //     x: this.brain.obj.position.x,
+    //     y: this.brain.obj.position.y,
+    //   };
+    // }
 
     for (const cell of this.cells) {
       if (cell.obj) {
@@ -328,15 +281,22 @@ export class Organism {
           cell.obj.position.y
         );
 
+        // replace with vector rotation
         const dist = pointDist(0, 0, cell.offsetX, cell.offsetY);
         const dir = pointDir(0, 0, cell.offsetX, cell.offsetY);
 
         const targetPosX =
           cell.obj.position.x +
-          lengthDirX(dist * SPACING, dir + this.targetDir);
+          lengthDirX(
+            dist * SPACING,
+            dir + this.targetDir - saveData.direction + 90
+          );
         const targetPosY =
           cell.obj.position.y +
-          lengthDirY(dist * SPACING, dir + this.targetDir);
+          lengthDirY(
+            dist * SPACING,
+            dir + this.targetDir - saveData.direction + 90
+          );
 
         const angleFromCenterToTarget = pointDir(
           this.avgPosition.x,
@@ -353,7 +313,7 @@ export class Organism {
           targetPosY
         );
 
-        const turnFactor = 0.0000002 * Math.max(distToTarget, 10);
+        const turnFactor = 0.0000004 * Math.max(distToTarget, 10);
         const moveFactor =
           0.0000005 * (120 - Math.min(Math.abs(this.avgDiff), 120));
         // const turnFactor = 0.0001;
@@ -430,25 +390,82 @@ export class Organism {
     this.setConnected();
   }
 
-  getAvailableSpots(decs = 4): IAvailableSpot[] {
+  overlapsWith(
+    occupiedSpots: Vector[],
+    spot: ISpotAndOffset,
+    decs = 4
+  ): boolean {
+    // console.log(occupiedSpots);
+    // console.log(spot.offset);
+
+    const transformedOccupiedSpots = occupiedSpots.map((occupiedSpot) =>
+      rotateVector({ x: 0, y: 0 }, occupiedSpot, spot.offset + 90 + 60)
+    );
+    // console.log(transformedOccupiedSpots);
+
+    return this.cells.some((cell) => {
+      const transformedCellOccupiedSpots = cell.occupiedSpots.map(
+        (occupiedSpot) =>
+          rotateVector({ x: 0, y: 0 }, occupiedSpot, cell.angleOffset + 90 + 60)
+      );
+      // console.log(
+      //   `{spot.offsetX: ${spot.pos.x} {spot.offsetY: ${spot.pos.y} ang: ${spot.offset}`
+      // );
+      // console.log(
+      //   `{cell.offsetX: ${cell.offsetX} {cell.offsetY: ${cell.offsetY}`
+      // );
+
+      return transformedOccupiedSpots.some((occupiedSpot) =>
+        transformedCellOccupiedSpots.some((occSpot) => {
+          // console.log({
+          //   x: cell.offsetX + occSpot.x,
+          //   y: cell.offsetY + occSpot.y,
+          // });
+          //
+          // console.log({
+          //   x: spot.pos.x + occupiedSpot.x,
+          //   y: spot.pos.y + occupiedSpot.y,
+          // });
+          // console.log(
+          //   (cell.offsetX + occSpot.x).toFixed(decs) ===
+          //     (spot.pos.x + occupiedSpot.x).toFixed(decs) &&
+          //     (cell.offsetY + occSpot.y).toFixed(decs) ===
+          //       (spot.pos.y + occupiedSpot.y).toFixed(decs)
+          // );
+          // console.log("===");
+          return (
+            floatEquals(
+              cell.offsetX + occSpot.x,
+              spot.pos.x + occupiedSpot.x
+            ) &&
+            floatEquals(cell.offsetY + occSpot.y, spot.pos.y + occupiedSpot.y)
+          );
+        })
+      );
+    });
+  }
+
+  getAvailableSpots(shapes: Vector[], decs = 4): IAvailableSpot[] {
     const storedSpots: IAvailableSpot[] = [];
 
     this.cells
       .flatMap((cell) => cell.getSurroundingAvailableSpots())
       .forEach((spot) => {
-        const duplicateSpot = storedSpots.find(
-          (storedSpot) =>
-            storedSpot.pos.x.toFixed(decs) === spot.pos.x.toFixed(decs) &&
-            storedSpot.pos.y.toFixed(decs) === spot.pos.y.toFixed(decs)
-        );
+        const overlaps = this.overlapsWith(shapes, spot);
 
-        if (duplicateSpot) {
-          duplicateSpot.availableOffsets.push(spot.offset);
-        } else {
-          storedSpots.push({
-            pos: spot.pos,
-            availableOffsets: [spot.offset],
-          });
+        if (!overlaps) {
+          const duplicateSpot = storedSpots.find((storedSpot) =>
+            pointsEqual(storedSpot.pos, spot.pos)
+          );
+
+          if (duplicateSpot) {
+            duplicateSpot.availableOffsets.push(spot.offset);
+          } else {
+            storedSpots.push({
+              pos: spot.pos,
+              availableOffsets: [spot.offset],
+            });
+          }
         }
       });
 

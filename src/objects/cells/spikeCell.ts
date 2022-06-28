@@ -1,5 +1,11 @@
 import { Cell } from "./cell";
-import { EImageKey, MASS, RADIUS, SPACING } from "../../scenes/gameScene";
+import {
+  EImageKey,
+  MASS,
+  RAD_3_OVER_2,
+  RADIUS,
+  SPACING,
+} from "../../scenes/gameScene";
 import { TSavedCell } from "../../context/saveData";
 import { Organism } from "../organism";
 import DegToRad = Phaser.Math.DegToRad;
@@ -17,6 +23,10 @@ export class SpikeCell extends Cell {
       imageKey: EImageKey.SpikeCell,
       isBody: false,
       imageOffset: { x: 0.5, y: 0.75 },
+      occupiedSpots: [
+        { x: 0, y: 0 },
+        { x: 0.5, y: -RAD_3_OVER_2 },
+      ],
     });
   }
 
@@ -24,11 +34,8 @@ export class SpikeCell extends Cell {
     const offset = rotateVector(
       { x: 0, y: 0 },
       { x: this.imageOffset.x - 0.5, y: this.imageOffset.y - 0.5 },
-      180 - this.angleOffset
+      this.angleOffset
     );
-    console.log({ x: this.imageOffset.x - 0.5, y: this.imageOffset.y - 0.5 });
-    console.log(this.angleOffset);
-    console.log(offset);
 
     this.obj = matter.add.trapezoid(
       org.avgPosition.x + (this.offsetX + offset.x) * SPACING,
