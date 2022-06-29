@@ -13,10 +13,9 @@ export class MouthCell extends Cell {
   private hitEnemies: Cell[];
   private readonly damage: number;
 
-  constructor({ offsetX, offsetY, angleOffset }: Partial<TSavedCell>) {
+  constructor({ offset, angleOffset }: Partial<TSavedCell>) {
     super({
-      offsetX,
-      offsetY,
+      offset,
       angleOffset,
       color: 0xf2a041,
       mass: MASS,

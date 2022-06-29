@@ -15,8 +15,7 @@ type TCellOverrides = Partial<
   Pick<
     Cell,
     | "health"
-    | "offsetX"
-    | "offsetY"
+    | "offset"
     | "mass"
     | "color"
     | "imageKey"
@@ -24,6 +23,7 @@ type TCellOverrides = Partial<
     | "angleOffset"
     | "imageOffset"
     | "occupiedSpots"
+    | "mustPlacePerpendicular"
   >
 >;
 
@@ -58,9 +58,9 @@ export class Cell {
   // public leftLink?: MatterJS.ConstraintType;
   public links: ICellLink[];
 
-  public offsetX: number;
-  public offsetY: number;
+  public offset: Vector;
 
+  public readonly mustPlacePerpendicular: boolean;
   public readonly mass: number;
   public readonly color: number;
   public readonly isBody: boolean;
@@ -78,14 +78,18 @@ export class Cell {
   public imageKey: EImageKey;
 
   constructor(overrides: TCellOverrides) {
-    this.offsetX = overrides.offsetX !== undefined ? overrides.offsetX : 0;
-    this.offsetY = overrides.offsetY !== undefined ? overrides.offsetY : 0;
+    this.offset =
+      overrides.offset !== undefined ? overrides.offset : { x: 0, y: 0 };
     this.color = overrides.color !== undefined ? overrides.color : 0xffffff;
     this.occupiedSpots =
       overrides.occupiedSpots !== undefined
         ? overrides.occupiedSpots
         : [{ x: 0, y: 0 }];
     this.isBody = overrides.isBody !== undefined ? overrides.isBody : true;
+    this.mustPlacePerpendicular =
+      overrides.mustPlacePerpendicular !== undefined
+        ? overrides.mustPlacePerpendicular
+        : false;
     this.mass = overrides.mass !== undefined ? overrides.mass : 1;
     this.imageOffset =
       overrides.imageOffset !== undefined
@@ -119,12 +123,13 @@ export class Cell {
     }
 
     this.image = add.image(
-      this.offsetX * SPACING,
-      this.offsetY * SPACING,
+      this.offset.x * SPACING,
+      this.offset.y * SPACING,
       this.imageKey
     );
     this.image.scale = 0.65;
     this.image.setOrigin(this.imageOffset.x, this.imageOffset.y);
+    this.image.angle = this.angleOffset;
 
     this.healthBar = new HealthBar(add);
 
@@ -153,8 +158,8 @@ export class Cell {
     //   }
     // );
     this.obj = matter.add.polygon(
-      org.avgPosition.x + this.offsetX * SPACING,
-      org.avgPosition.y + this.offsetY * SPACING,
+      org.avgPosition.x + this.offset.x * SPACING,
+      org.avgPosition.y + this.offset.y * SPACING,
       6,
       RADIUS,
       {
@@ -177,7 +182,7 @@ export class Cell {
     ]);
   }
 
-  getSurroundingAvailableSpots(): ISpotAndOffset[] {
+  getSurroundingAvailableSpots(requiredAngle?: number): ISpotAndOffset[] {
     if (!this.isBody) {
       return [];
     }
@@ -186,46 +191,52 @@ export class Cell {
       !this.upLeftCell && {
         offset: 330,
         pos: {
-          x: this.offsetX - 0.5,
-          y: this.offsetY - RAD_3_OVER_2,
+          x: this.offset.x - 0.5,
+          y: this.offset.y - RAD_3_OVER_2,
         },
       },
       !this.upRightCell && {
         offset: 30,
         pos: {
-          x: this.offsetX + 0.5,
-          y: this.offsetY - RAD_3_OVER_2,
+          x: this.offset.x + 0.5,
+          y: this.offset.y - RAD_3_OVER_2,
         },
       },
       !this.rightCell && {
         offset: 90,
         pos: {
-          x: this.offsetX + 1,
-          y: this.offsetY,
+          x: this.offset.x + 1,
+          y: this.offset.y,
         },
       },
       !this.downRightCell && {
         offset: 150,
         pos: {
-          x: this.offsetX + 0.5,
-          y: this.offsetY + RAD_3_OVER_2,
+          x: this.offset.x + 0.5,
+          y: this.offset.y + RAD_3_OVER_2,
         },
       },
       !this.downLeftCell && {
         offset: 210,
         pos: {
-          x: this.offsetX - 0.5,
-          y: this.offsetY + RAD_3_OVER_2,
+          x: this.offset.x - 0.5,
+          y: this.offset.y + RAD_3_OVER_2,
         },
       },
       !this.leftCell && {
         offset: 270,
         pos: {
-          x: this.offsetX - 1,
-          y: this.offsetY,
+          x: this.offset.x - 1,
+          y: this.offset.y,
         },
       },
-    ]);
+    ]).filter((spot) => {
+      if (requiredAngle === undefined) {
+        return true;
+      }
+
+      return spot.offset === requiredAngle;
+    });
   }
 
   isDangly(cell: Cell): boolean {
@@ -350,38 +361,38 @@ export class Cell {
   setChildrenCells() {
     this.upLeftCell = this.organism?.cells.find(
       (c) =>
-        this.offsetX - 0.5 === c.offsetX &&
-        floatEquals(this.offsetY - RAD_3_OVER_2, c.offsetY) &&
+        this.offset.x - 0.5 === c.offset.x &&
+        floatEquals(this.offset.y - RAD_3_OVER_2, c.offset.y) &&
         c.health > 0
     );
     this.upRightCell = this.organism?.cells.find(
       (c) =>
-        this.offsetX + 0.5 === c.offsetX &&
-        floatEquals(this.offsetY - RAD_3_OVER_2, c.offsetY) &&
+        this.offset.x + 0.5 === c.offset.x &&
+        floatEquals(this.offset.y - RAD_3_OVER_2, c.offset.y) &&
         c.health > 0
     );
     this.leftCell = this.organism?.cells.find(
       (c) =>
-        this.offsetX - 1 === c.offsetX &&
-        floatEquals(this.offsetY, c.offsetY) &&
+        this.offset.x - 1 === c.offset.x &&
+        floatEquals(this.offset.y, c.offset.y) &&
         c.health > 0
     );
     this.rightCell = this.organism?.cells.find(
       (c) =>
-        this.offsetX + 1 === c.offsetX &&
-        floatEquals(this.offsetY, c.offsetY) &&
+        this.offset.x + 1 === c.offset.x &&
+        floatEquals(this.offset.y, c.offset.y) &&
         c.health > 0
     );
     this.downLeftCell = this.organism?.cells.find(
       (c) =>
-        this.offsetX - 0.5 === c.offsetX &&
-        floatEquals(this.offsetY + RAD_3_OVER_2, c.offsetY) &&
+        this.offset.x - 0.5 === c.offset.x &&
+        floatEquals(this.offset.y + RAD_3_OVER_2, c.offset.y) &&
         c.health > 0
     );
     this.downRightCell = this.organism?.cells.find(
       (c) =>
-        this.offsetX + 0.5 === c.offsetX &&
-        floatEquals(this.offsetY + RAD_3_OVER_2, c.offsetY) &&
+        this.offset.x + 0.5 === c.offset.x &&
+        floatEquals(this.offset.y + RAD_3_OVER_2, c.offset.y) &&
         c.health > 0
     );
   }

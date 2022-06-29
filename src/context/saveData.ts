@@ -6,7 +6,7 @@ import { BrainCell } from "../objects/cells/brainCell";
 import { Organism } from "../objects/organism";
 import { SpikeCell } from "../objects/cells/spikeCell";
 
-export type TSavedCell = Pick<Cell, "offsetX" | "offsetY" | "angleOffset">;
+export type TSavedCell = Pick<Cell, "offset" | "angleOffset">;
 type TSavedOrganism = Pick<Organism, "isPlayer">;
 
 export interface ISavedCell extends TSavedCell {
@@ -34,8 +34,7 @@ export const saveData: ISaveData = {
       {
         type: ECellType.BrainCell,
         angleOffset: 0,
-        offsetX: 0,
-        offsetY: 0,
+        offset: { x: 0, y: 0 },
       },
     ],
     // cells: star,
@@ -110,8 +109,7 @@ export const saveOrganism = (organism: Organism): ISavedOrganism => {
     y: center.y,
     cells: organism.cells.map((cell) => ({
       type: getTypeFromCell(cell),
-      offsetX: cell.offsetX,
-      offsetY: cell.offsetY,
+      offset: cell.offset,
       angleOffset: cell.angleOffset,
     })),
   };

@@ -3,10 +3,9 @@ import { EImageKey, MASS } from "../../scenes/gameScene";
 import { TSavedCell } from "../../context/saveData";
 
 export class BrainCell extends Cell {
-  constructor({ offsetX, offsetY, angleOffset }: Partial<TSavedCell>) {
+  constructor({ offset, angleOffset }: Partial<TSavedCell>) {
     super({
-      offsetX,
-      offsetY,
+      offset,
       angleOffset,
       color: 0x544b57,
       mass: MASS,

@@ -1,11 +1,10 @@
-import GameScene, { EImageKey, RADIUS, SPACING } from "./gameScene";
-import { IAvailableSpot, Organism } from "../objects/organism";
+import GameScene, { RADIUS, SPACING } from "./gameScene";
+import { Organism } from "../objects/organism";
 import { EDITOR_WIDTH, ESceneKey } from "../index";
 import { lerp, pointDist } from "../helpers/math";
 import { Vector } from "matter";
 import eventsCenter, { EEvent } from "../events/eventCenter";
 import { screenHeight, screenWidth } from "../config";
-import DegToRad = Phaser.Math.DegToRad;
 import editorState from "../context/editorState";
 import {
   createCellFromType,
@@ -14,7 +13,10 @@ import {
   saveOrganism,
 } from "../context/saveData";
 import { Cell } from "../objects/cells/cell";
+import OutlinePipelinePlugin from "phaser3-rex-plugins/plugins/outlinepipeline-plugin";
+import { compact } from "lodash";
 
+const originColor = Phaser.Display.Color.ValueToColor("#414141").color;
 const availableSpotColor = Phaser.Display.Color.ValueToColor("#dedede").color;
 const hoveredCellColor = Phaser.Display.Color.ValueToColor("#e0e0e0").color;
 
@@ -22,16 +24,18 @@ export default class Editor extends GameScene {
   private organism: Organism;
   private zoom: number;
   private targetZoom: number;
-  private availableSpots: IAvailableSpot[];
+  private availableSpots: Vector[];
   private availableSpotGraphics?: Phaser.GameObjects.Graphics;
+  private origin?: Phaser.GameObjects.Graphics;
+  private hoveredCell?: Cell;
+  private highlightedCells: Cell[];
   private offset: Vector;
   private scrollX: number;
   private scrollY: number;
   private targetScrollX: number;
   private targetScrollY: number;
   private heldCellDuration: number;
-  private hoveredCell?: Cell;
-  private pipelineInstance?: Function | Phaser.Plugins.BasePlugin;
+  private pipelineInstance?: OutlinePipelinePlugin;
 
   constructor() {
     super(ESceneKey.Editor);
@@ -49,14 +53,26 @@ export default class Editor extends GameScene {
     this.targetScrollX = 0;
     this.targetScrollY = 0;
     this.heldCellDuration = 0;
+    this.highlightedCells = [];
   }
 
   create() {
-    this.pipelineInstance = this.plugins.get("rexOutlinePipeline");
+    this.pipelineInstance = this.plugins.get(
+      "rexOutlinePipeline"
+    ) as OutlinePipelinePlugin;
 
     this.organism.create(this.add);
 
     this.availableSpotGraphics = this.add.graphics();
+    this.availableSpotGraphics.depth = 10;
+
+    const short = 1;
+    const long = 10000;
+    this.origin = this.add.graphics();
+    this.origin.fillStyle(originColor, 0.1);
+    this.origin.fillRect(-short / 2, -long / 2, short, long);
+    this.origin.fillRect(-long / 2, -short / 2, long, short);
+    this.origin.depth = -10;
 
     // setup camera
     this.cameras.main.fadeIn(1000);
@@ -64,7 +80,7 @@ export default class Editor extends GameScene {
 
     eventsCenter.on(EEvent.BuyCell, () => {
       this.heldCellDuration = 0;
-      this.addBuyingCell();
+      this.addBuyingCell({ x: 0, y: 0 });
     });
     eventsCenter.on(EEvent.Continue, () => {
       saveData.organism = saveOrganism(this.organism);
@@ -80,7 +96,9 @@ export default class Editor extends GameScene {
     const rKey = this.input.keyboard.addKey("R");
 
     rKey.on("down", () => {
-      editorState.rotationIndex += 1;
+      editorState.rotateMouseCells();
+      this.availableSpots = this.getAvailableSpots();
+      this.drawAvailableSpots();
     });
 
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -124,7 +142,7 @@ export default class Editor extends GameScene {
 
     const mousePos = this.getMousePos();
 
-    if (editorState.mouseCell?.image) {
+    if (editorState.mouseCells.length) {
       this.heldCellDuration += 1;
       const inEditor = this.input.mousePointer.x < EDITOR_WIDTH;
 
@@ -134,52 +152,58 @@ export default class Editor extends GameScene {
         const hoveredSpot = this.getHoveredSpot(mousePos.x, mousePos.y);
 
         if (hoveredSpot) {
-          editorState.mouseCell.image.x = hoveredSpot.pos.x * SPACING;
-          editorState.mouseCell.image.y = hoveredSpot.pos.y * SPACING;
-          editorState.mouseCell.angleOffset =
-            hoveredSpot.availableOffsets[
-              editorState.rotationIndex % hoveredSpot.availableOffsets.length
-            ];
-          editorState.mouseCell.image.alpha = 1;
-          editorState.mouseCell.image.rotation = DegToRad(
-            editorState.mouseCell.angleOffset
+          editorState.setMouseCellsPosition(
+            hoveredSpot.x * SPACING,
+            hoveredSpot.y * SPACING,
+
+            1
           );
 
           if (clicked) {
-            editorState.mouseCell.offsetX = hoveredSpot.pos.x;
-            editorState.mouseCell.offsetY = hoveredSpot.pos.y;
-            this.organism.cells.push(editorState.mouseCell);
-            this.organism.syncCells();
+            editorState.setMouseCellsOffset(hoveredSpot);
+
+            this.organism.addCells(editorState.mouseCells);
+
             this.setCamera();
-            this.addBuyingCell();
+            // this.addBuyingCell();
+            this.availableSpots = [];
+            this.drawAvailableSpots();
+            editorState.mouseCells = [];
           }
         } else {
-          editorState.mouseCell.image.x = mousePos.x;
-          editorState.mouseCell.image.y = mousePos.y;
-          editorState.mouseCell.image.alpha = 0.5;
+          editorState.setMouseCellsPosition(mousePos.x, mousePos.y, 0.5);
         }
       }
     } else {
       const hoveredCell = this.getHoveredCell(mousePos.x, mousePos.y);
 
       if (hoveredCell !== this.hoveredCell) {
-        if (this.pipelineInstance) {
-          if (hoveredCell) {
-            this.pipelineInstance.add(hoveredCell.image, {
-              thickness: 6,
-              outlineColor: hoveredCellColor,
-            });
-          } else if (this.hoveredCell?.image) {
-            this.pipelineInstance.remove(this.hoveredCell.image);
-          }
+        if (hoveredCell) {
+          this.organism.setConnected(hoveredCell);
+
+          this.highlightCells(
+            compact(this.organism.cells.filter((cell) => !cell.connected))
+          );
+        } else {
+          this.clearHighlight();
         }
       }
 
       this.hoveredCell = hoveredCell;
 
-      // if (this.hoveredCell?.image) {
-      //   this.hoveredCell.image.setPostPipeline(OutlinePostFx);
-      // }
+      if (this.hoveredCell?.image && clicked) {
+        this.organism.removeCells(this.highlightedCells);
+        editorState.mouseCells = this.highlightedCells;
+
+        editorState.setMouseCellsOffset({
+          x: -this.hoveredCell.offset.x,
+          y: -this.hoveredCell.offset.y,
+        });
+
+        this.availableSpots = this.getAvailableSpots();
+        this.drawAvailableSpots();
+        this.clearHighlight();
+      }
     }
 
     if (this.input.mousePointer.leftButtonReleased()) {
@@ -195,9 +219,9 @@ export default class Editor extends GameScene {
     this.targetScrollY = this.offset.y * SPACING;
   }
 
-  getHoveredSpot(x: number, y: number): IAvailableSpot | undefined {
+  getHoveredSpot(x: number, y: number): Vector | undefined {
     for (const spot of this.availableSpots) {
-      const dist = pointDist(spot.pos.x * SPACING, spot.pos.y * SPACING, x, y);
+      const dist = pointDist(spot.x * SPACING, spot.y * SPACING, x, y);
 
       if (dist < RADIUS) {
         return spot;
@@ -208,8 +232,8 @@ export default class Editor extends GameScene {
   getHoveredCell(x: number, y: number): Cell | undefined {
     for (const cell of this.organism.cells) {
       const dist = pointDist(
-        cell.offsetX * SPACING,
-        cell.offsetY * SPACING,
+        cell.offset.x * SPACING,
+        cell.offset.y * SPACING,
         x,
         y
       );
@@ -227,33 +251,66 @@ export default class Editor extends GameScene {
 
       this.availableSpots.forEach((spot) => {
         this.availableSpotGraphics?.fillCircle(
-          spot.pos.x * SPACING,
-          spot.pos.y * SPACING,
+          spot.x * SPACING,
+          spot.y * SPACING,
           RADIUS
         );
       });
     }
   }
 
-  addBuyingCell() {
-    const offset = this.getMousePos();
+  addBuyingCell(offset: Vector) {
     const cell = createCellFromType(editorState.type, {
-      offsetX: offset.x / SPACING,
-      offsetY: offset.y / SPACING,
+      offset,
+      angleOffset: 90,
     });
     cell.create(this.organism, this.add);
-    editorState.mouseCell = cell;
+    editorState.mouseCells = [cell];
 
-    this.availableSpots = this.organism.getAvailableSpots(cell.occupiedSpots);
+    this.availableSpots = this.getAvailableSpots();
     this.drawAvailableSpots();
   }
 
   sellCell() {
-    if (editorState.mouseCell?.image) {
-      editorState.mouseCell.image.destroy();
-      editorState.mouseCell = undefined;
-      this.availableSpots = [];
-      this.drawAvailableSpots();
-    }
+    editorState.mouseCells.forEach((cell) => {
+      cell.image?.destroy();
+    });
+    editorState.mouseCells = [];
+    this.availableSpots = [];
+    this.drawAvailableSpots();
+  }
+
+  highlightCells(cells: Cell[]) {
+    this.clearHighlight();
+    this.highlightedCells = cells;
+    this.highlightedCells.forEach(
+      (cell) =>
+        cell.image &&
+        this.pipelineInstance?.add(cell.image, {
+          // @ts-ignore the typing is just broken on this
+          thickness: 6,
+          outlineColor: hoveredCellColor,
+        })
+    );
+  }
+
+  clearHighlight() {
+    this.highlightedCells.forEach(
+      (cell) => cell.image && this.pipelineInstance?.remove(cell.image)
+    );
+    this.highlightedCells = [];
+  }
+
+  getAvailableSpots(): Vector[] {
+    const requiredAngle =
+      editorState.mouseCells.length === 1 &&
+      editorState.mouseCells[0].mustPlacePerpendicular
+        ? editorState.mouseCells[0].angleOffset
+        : undefined;
+
+    return this.organism.getAvailableSpots(
+      editorState.mouseCells,
+      requiredAngle
+    );
   }
 }

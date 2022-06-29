@@ -108,7 +108,7 @@ export default class EditorGUI extends GameScene {
   }
 
   buyItem(cost: number, type: ECellType) {
-    if (!editorState.mouseCell) {
+    if (!editorState.mouseCells.length) {
       editorState.type = type;
       eventsCenter.emit(EEvent.BuyCell);
     }

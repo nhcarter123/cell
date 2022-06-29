@@ -37,6 +37,11 @@ export const angleDiff = (
   return diff;
 };
 
+export const addVectors = (v1: Vector, v2: Vector): Vector => ({
+  x: v1.x + v2.x,
+  y: v1.y + v2.y,
+});
+
 export const rotateVector = (
   origin: Vector,
   point: Vector,

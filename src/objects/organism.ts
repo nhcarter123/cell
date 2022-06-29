@@ -1,6 +1,7 @@
 import { BrainCell } from "./cells/brainCell";
 import { Cell, ISpotAndOffset } from "./cells/cell";
 import {
+  addVectors,
   angleDiff,
   floatEquals,
   lengthDirX,
@@ -11,7 +12,7 @@ import {
   rotateVector,
 } from "../helpers/math";
 import { compact } from "lodash";
-import { DAMPING, RADIUS, SPACING, STIFFNESS } from "../scenes/gameScene";
+import { DAMPING, SPACING, STIFFNESS } from "../scenes/gameScene";
 import { Vector } from "matter";
 import Ocean from "../scenes/ocean";
 import RadToDeg = Phaser.Math.RadToDeg;
@@ -25,11 +26,6 @@ interface IBound {
 interface IBounds {
   x: IBound;
   y: IBound;
-}
-
-export interface IAvailableSpot {
-  pos: Vector;
-  availableOffsets: number[];
 }
 
 export class Organism {
@@ -160,17 +156,17 @@ export class Organism {
     let maxY = 0;
 
     this.cells.forEach((cell) => {
-      if (cell.offsetX < minX) {
-        minX = cell.offsetX;
+      if (cell.offset.x < minX) {
+        minX = cell.offset.x;
       }
-      if (cell.offsetX > maxX) {
-        maxX = cell.offsetX;
+      if (cell.offset.x > maxX) {
+        maxX = cell.offset.x;
       }
-      if (cell.offsetY < minY) {
-        minY = cell.offsetY;
+      if (cell.offset.y < minY) {
+        minY = cell.offset.y;
       }
-      if (cell.offsetY > maxY) {
-        maxY = cell.offsetY;
+      if (cell.offset.y > maxY) {
+        maxY = cell.offset.y;
       }
     });
 
@@ -282,8 +278,8 @@ export class Organism {
         );
 
         // replace with vector rotation
-        const dist = pointDist(0, 0, cell.offsetX, cell.offsetY);
-        const dir = pointDir(0, 0, cell.offsetX, cell.offsetY);
+        const dist = pointDist(0, 0, cell.offset.x, cell.offset.y);
+        const dir = pointDir(0, 0, cell.offset.x, cell.offset.y);
 
         const targetPosX =
           cell.obj.position.x +
@@ -349,23 +345,28 @@ export class Organism {
     // }
   }
 
-  setConnected() {
+  setConnected(cellToRemove?: Cell) {
     const cellsToCheck = compact([
       (this.brain?.health || 0) > 0 ? this.brain : undefined,
     ]);
+
+    this.cells.forEach((cell) => {
+      cell.connected = false;
+      cell.beenScanned = false;
+    });
 
     while (cellsToCheck.length) {
       const cell = cellsToCheck.pop();
 
       if (cell && !cell.beenScanned) {
-        cell.connected = true;
         cell.beenScanned = true;
 
-        cellsToCheck.push(...cell.getSurroundingCells());
+        if (cell !== cellToRemove) {
+          cell.connected = true;
+          cellsToCheck.push(...cell.getSurroundingCells());
+        }
       }
     }
-
-    this.cells.forEach((cell) => (cell.beenScanned = false));
   }
 
   syncCells(matter?: Phaser.Physics.Matter.MatterPhysics) {
@@ -376,10 +377,6 @@ export class Organism {
         if (cell.health <= 0) {
           matter && cell.destroy(matter);
         } else {
-          // set all cells connected state to false in preparation for setConnected
-          cell.connected = false;
-          cell.beenScanned = false;
-
           return cell;
         }
       })
@@ -390,85 +387,59 @@ export class Organism {
     this.setConnected();
   }
 
-  overlapsWith(
-    occupiedSpots: Vector[],
-    spot: ISpotAndOffset,
-    decs = 4
-  ): boolean {
-    // console.log(occupiedSpots);
-    // console.log(spot.offset);
-
-    const transformedOccupiedSpots = occupiedSpots.map((occupiedSpot) =>
-      rotateVector({ x: 0, y: 0 }, occupiedSpot, spot.offset + 90 + 60)
-    );
-    // console.log(transformedOccupiedSpots);
-
-    return this.cells.some((cell) => {
-      const transformedCellOccupiedSpots = cell.occupiedSpots.map(
-        (occupiedSpot) =>
-          rotateVector({ x: 0, y: 0 }, occupiedSpot, cell.angleOffset + 90 + 60)
-      );
-      // console.log(
-      //   `{spot.offsetX: ${spot.pos.x} {spot.offsetY: ${spot.pos.y} ang: ${spot.offset}`
-      // );
-      // console.log(
-      //   `{cell.offsetX: ${cell.offsetX} {cell.offsetY: ${cell.offsetY}`
-      // );
-
-      return transformedOccupiedSpots.some((occupiedSpot) =>
-        transformedCellOccupiedSpots.some((occSpot) => {
-          // console.log({
-          //   x: cell.offsetX + occSpot.x,
-          //   y: cell.offsetY + occSpot.y,
-          // });
-          //
-          // console.log({
-          //   x: spot.pos.x + occupiedSpot.x,
-          //   y: spot.pos.y + occupiedSpot.y,
-          // });
-          // console.log(
-          //   (cell.offsetX + occSpot.x).toFixed(decs) ===
-          //     (spot.pos.x + occupiedSpot.x).toFixed(decs) &&
-          //     (cell.offsetY + occSpot.y).toFixed(decs) ===
-          //       (spot.pos.y + occupiedSpot.y).toFixed(decs)
-          // );
-          // console.log("===");
-          return (
+  overlapsWith(occupiedSpots: Vector[], spot: ISpotAndOffset): boolean {
+    return this.cells.some((cell) =>
+      occupiedSpots.some((occupiedSpot) =>
+        cell.occupiedSpots.some(
+          (occSpot) =>
             floatEquals(
-              cell.offsetX + occSpot.x,
+              cell.offset.x + occSpot.x,
               spot.pos.x + occupiedSpot.x
             ) &&
-            floatEquals(cell.offsetY + occSpot.y, spot.pos.y + occupiedSpot.y)
-          );
-        })
-      );
-    });
+            floatEquals(cell.offset.y + occSpot.y, spot.pos.y + occupiedSpot.y)
+        )
+      )
+    );
   }
 
-  getAvailableSpots(shapes: Vector[], decs = 4): IAvailableSpot[] {
-    const storedSpots: IAvailableSpot[] = [];
+  getAvailableSpots(cells: Cell[], requiredAngle?: number): Vector[] {
+    const storedSpots: Vector[] = [];
+    const shapes: Vector[] = cells.flatMap((cell) =>
+      cell.occupiedSpots.map((occupiedSpot) =>
+        addVectors(occupiedSpot, cell.offset)
+      )
+    );
+
+    if (!this.cells.length) {
+      return [{ x: 0, y: 0 }];
+    }
 
     this.cells
-      .flatMap((cell) => cell.getSurroundingAvailableSpots())
+      .flatMap((cell) => cell.getSurroundingAvailableSpots(requiredAngle))
       .forEach((spot) => {
         const overlaps = this.overlapsWith(shapes, spot);
 
         if (!overlaps) {
           const duplicateSpot = storedSpots.find((storedSpot) =>
-            pointsEqual(storedSpot.pos, spot.pos)
+            pointsEqual(storedSpot, spot.pos)
           );
 
-          if (duplicateSpot) {
-            duplicateSpot.availableOffsets.push(spot.offset);
-          } else {
-            storedSpots.push({
-              pos: spot.pos,
-              availableOffsets: [spot.offset],
-            });
+          if (!duplicateSpot) {
+            storedSpots.push(spot.pos);
           }
         }
       });
 
     return storedSpots;
+  }
+
+  addCells(cells: Cell[]) {
+    this.cells.push(...cells);
+    this.syncCells();
+  }
+
+  removeCells(cells: Cell[]) {
+    this.cells = this.cells.filter((c) => !cells.includes(c));
+    this.syncCells();
   }
 }

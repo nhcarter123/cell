@@ -9,6 +9,8 @@
     "allowSyntheticDefaultImports": true,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
+    "noImplicitAny": true,
+    "noPropertyAccessFromIndexSignature": true,
     "module": "ESNext",
     "moduleResolution": "Node",
     "resolveJsonModule": true,
