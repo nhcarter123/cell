@@ -83,7 +83,7 @@ export default class Ocean extends GameScene {
 
     this.organisms.forEach((org) =>
       org.cells.forEach((cell) =>
-        cell.update(this.matter, this.input.mousePointer.leftButtonDown())
+        cell.update(this.input.mousePointer.leftButtonDown(), this.matter)
       )
     );
 

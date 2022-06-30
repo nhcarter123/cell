@@ -10,7 +10,7 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": true,
-    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedIndexedAccess": true,
     "module": "ESNext",
     "moduleResolution": "Node",
     "resolveJsonModule": true,

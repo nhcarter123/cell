@@ -59,6 +59,7 @@ export class Cell {
   public links: ICellLink[];
 
   public offset: Vector;
+  public placingOffset: Vector;
 
   public readonly mustPlacePerpendicular: boolean;
   public readonly mass: number;
@@ -104,6 +105,7 @@ export class Cell {
 
     this.previousHealth = this.health;
     this.showHealthBar = 0;
+    this.placingOffset = this.offset;
 
     this.connected = false;
     this.beenScanned = false;
@@ -182,7 +184,7 @@ export class Cell {
     ]);
   }
 
-  getSurroundingAvailableSpots(requiredAngle?: number): ISpotAndOffset[] {
+  getSurroundingAvailableSpots(): ISpotAndOffset[] {
     if (!this.isBody) {
       return [];
     }
@@ -230,13 +232,7 @@ export class Cell {
           y: this.offset.y,
         },
       },
-    ]).filter((spot) => {
-      if (requiredAngle === undefined) {
-        return true;
-      }
-
-      return spot.offset === requiredAngle;
-    });
+    ]);
   }
 
   isDangly(cell: Cell): boolean {
@@ -310,17 +306,18 @@ export class Cell {
     }
   }
 
-  update(matter: Phaser.Physics.Matter.MatterPhysics, attacking: boolean) {
-    if (!this.connected) {
+  update(attacking: boolean, matter?: Phaser.Physics.Matter.MatterPhysics) {
+    if (!this.connected && matter) {
       this.health -= 0.0025;
     }
 
     if (this.image) {
-      this.image.x = this.obj?.position.x || 0;
-      this.image.y = this.obj?.position.y || 0;
-
       if (this.obj) {
+        this.image.x = this.obj.position.x;
+        this.image.y = this.obj.position.y;
         this.image.angle = RadToDeg(this.obj.angle);
+      } else {
+        this.image.angle = this.angleOffset;
       }
     }
 
@@ -361,37 +358,37 @@ export class Cell {
   setChildrenCells() {
     this.upLeftCell = this.organism?.cells.find(
       (c) =>
-        this.offset.x - 0.5 === c.offset.x &&
+        floatEquals(this.offset.x - 0.5, c.offset.x) &&
         floatEquals(this.offset.y - RAD_3_OVER_2, c.offset.y) &&
         c.health > 0
     );
     this.upRightCell = this.organism?.cells.find(
       (c) =>
-        this.offset.x + 0.5 === c.offset.x &&
+        floatEquals(this.offset.x + 0.5, c.offset.x) &&
         floatEquals(this.offset.y - RAD_3_OVER_2, c.offset.y) &&
         c.health > 0
     );
     this.leftCell = this.organism?.cells.find(
       (c) =>
-        this.offset.x - 1 === c.offset.x &&
+        floatEquals(this.offset.x - 1, c.offset.x) &&
         floatEquals(this.offset.y, c.offset.y) &&
         c.health > 0
     );
     this.rightCell = this.organism?.cells.find(
       (c) =>
-        this.offset.x + 1 === c.offset.x &&
+        floatEquals(this.offset.x + 1, c.offset.x) &&
         floatEquals(this.offset.y, c.offset.y) &&
         c.health > 0
     );
     this.downLeftCell = this.organism?.cells.find(
       (c) =>
-        this.offset.x - 0.5 === c.offset.x &&
+        floatEquals(this.offset.x - 0.5, c.offset.x) &&
         floatEquals(this.offset.y + RAD_3_OVER_2, c.offset.y) &&
         c.health > 0
     );
     this.downRightCell = this.organism?.cells.find(
       (c) =>
-        this.offset.x + 0.5 === c.offset.x &&
+        floatEquals(this.offset.x + 0.5, c.offset.x) &&
         floatEquals(this.offset.y + RAD_3_OVER_2, c.offset.y) &&
         c.health > 0
     );

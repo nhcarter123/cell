@@ -1,7 +1,7 @@
 import GameScene, { RADIUS, SPACING } from "./gameScene";
-import { Organism } from "../objects/organism";
+import { IAvailableSpot, Organism } from "../objects/organism";
 import { EDITOR_WIDTH, ESceneKey } from "../index";
-import { lerp, pointDist } from "../helpers/math";
+import { angleDiff, lerp, pointDir, pointDist } from "../helpers/math";
 import { Vector } from "matter";
 import eventsCenter, { EEvent } from "../events/eventCenter";
 import { screenHeight, screenWidth } from "../config";
@@ -24,7 +24,7 @@ export default class Editor extends GameScene {
   private organism: Organism;
   private zoom: number;
   private targetZoom: number;
-  private availableSpots: Vector[];
+  private availableSpots: IAvailableSpot[];
   private availableSpotGraphics?: Phaser.GameObjects.Graphics;
   private origin?: Phaser.GameObjects.Graphics;
   private hoveredCell?: Cell;
@@ -96,9 +96,9 @@ export default class Editor extends GameScene {
     const rKey = this.input.keyboard.addKey("R");
 
     rKey.on("down", () => {
-      editorState.rotateMouseCells();
-      this.availableSpots = this.getAvailableSpots();
-      this.drawAvailableSpots();
+      // editorState.rotateMouseCells();
+      // this.availableSpots = this.getAvailableSpots();
+      // this.drawAvailableSpots();
     });
 
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -121,6 +121,9 @@ export default class Editor extends GameScene {
 
   update(time: number, delta: number) {
     super.update(time, delta);
+
+    this.organism.cells.forEach((cell) => cell.update(false));
+    editorState.mouseCells.forEach((cell) => cell.update(false));
 
     this.zoom = lerp(this.zoom, this.targetZoom, 0.02);
     this.scrollX = lerp(this.scrollX, this.targetScrollX, 0.02);
@@ -152,15 +155,31 @@ export default class Editor extends GameScene {
         const hoveredSpot = this.getHoveredSpot(mousePos.x, mousePos.y);
 
         if (hoveredSpot) {
-          editorState.setMouseCellsPosition(
-            hoveredSpot.x * SPACING,
-            hoveredSpot.y * SPACING,
+          let smallestDiff = 180;
 
+          for (const offset of hoveredSpot.availableOffsets) {
+            const dir = pointDir(
+              hoveredSpot.pos.x * SPACING,
+              hoveredSpot.pos.y * SPACING,
+              mousePos.x,
+              mousePos.y
+            );
+            const diff = Math.abs(angleDiff(offset, dir - 60));
+
+            if (diff < smallestDiff) {
+              smallestDiff = diff;
+              editorState.angle = offset;
+            }
+          }
+
+          editorState.setMouseCellsPosition(
+            hoveredSpot.pos.x * SPACING,
+            hoveredSpot.pos.y * SPACING,
             1
           );
 
           if (clicked) {
-            editorState.setMouseCellsOffset(hoveredSpot);
+            editorState.setMouseCellsOffset(hoveredSpot.pos, true);
 
             this.organism.addCells(editorState.mouseCells);
 
@@ -182,7 +201,11 @@ export default class Editor extends GameScene {
           this.organism.setConnected(hoveredCell);
 
           this.highlightCells(
-            compact(this.organism.cells.filter((cell) => !cell.connected))
+            compact(
+              this.organism.cells
+                .filter((cell) => !cell.connected)
+                .sort((a) => (a === hoveredCell ? -1 : 1))
+            )
           );
         } else {
           this.clearHighlight();
@@ -195,10 +218,7 @@ export default class Editor extends GameScene {
         this.organism.removeCells(this.highlightedCells);
         editorState.mouseCells = this.highlightedCells;
 
-        editorState.setMouseCellsOffset({
-          x: -this.hoveredCell.offset.x,
-          y: -this.hoveredCell.offset.y,
-        });
+        editorState.setMouseCellsOffset(this.hoveredCell.offset, false);
 
         this.availableSpots = this.getAvailableSpots();
         this.drawAvailableSpots();
@@ -219,9 +239,9 @@ export default class Editor extends GameScene {
     this.targetScrollY = this.offset.y * SPACING;
   }
 
-  getHoveredSpot(x: number, y: number): Vector | undefined {
+  getHoveredSpot(x: number, y: number): IAvailableSpot | undefined {
     for (const spot of this.availableSpots) {
-      const dist = pointDist(spot.x * SPACING, spot.y * SPACING, x, y);
+      const dist = pointDist(spot.pos.x * SPACING, spot.pos.y * SPACING, x, y);
 
       if (dist < RADIUS) {
         return spot;
@@ -251,8 +271,8 @@ export default class Editor extends GameScene {
 
       this.availableSpots.forEach((spot) => {
         this.availableSpotGraphics?.fillCircle(
-          spot.x * SPACING,
-          spot.y * SPACING,
+          spot.pos.x * SPACING,
+          spot.pos.y * SPACING,
           RADIUS
         );
       });
@@ -262,7 +282,6 @@ export default class Editor extends GameScene {
   addBuyingCell(offset: Vector) {
     const cell = createCellFromType(editorState.type, {
       offset,
-      angleOffset: 90,
     });
     cell.create(this.organism, this.add);
     editorState.mouseCells = [cell];
@@ -301,16 +320,14 @@ export default class Editor extends GameScene {
     this.highlightedCells = [];
   }
 
-  getAvailableSpots(): Vector[] {
-    const requiredAngle =
-      editorState.mouseCells.length === 1 &&
-      editorState.mouseCells[0].mustPlacePerpendicular
-        ? editorState.mouseCells[0].angleOffset
-        : undefined;
+  getAvailableSpots(): IAvailableSpot[] {
+    // const requiredAngle =
+    //   editorState.mouseCells.length === 1 &&
+    //   editorState.mouseCells[0] &&
+    //   editorState.mouseCells[0].mustPlacePerpendicular
+    //     ? editorState.mouseCells[0].angleOffset
+    //     : undefined;
 
-    return this.organism.getAvailableSpots(
-      editorState.mouseCells,
-      requiredAngle
-    );
+    return this.organism.getAvailableSpots(editorState.mouseCells);
   }
 }

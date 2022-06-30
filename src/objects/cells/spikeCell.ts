@@ -1,5 +1,5 @@
 import { Cell } from "./cell";
-import { EImageKey, MASS, SPACING } from "../../scenes/gameScene";
+import { EImageKey, MASS, RAD_3_OVER_2, SPACING } from "../../scenes/gameScene";
 import { TSavedCell } from "../../context/saveData";
 import { Organism } from "../organism";
 import DegToRad = Phaser.Math.DegToRad;
@@ -19,7 +19,7 @@ export class SpikeCell extends Cell {
       imageOffset: { x: 0.5, y: 0.75 },
       occupiedSpots: [
         { x: 0, y: 0 },
-        { x: 1, y: 0 },
+        { x: 0.5, y: -RAD_3_OVER_2 },
       ],
     });
   }

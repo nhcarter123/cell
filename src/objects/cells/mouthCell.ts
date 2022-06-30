@@ -34,8 +34,8 @@ export class MouthCell extends Cell {
     this.hitEnemies = [];
   }
 
-  update(matter: Phaser.Physics.Matter.MatterPhysics, attacking: boolean) {
-    super.update(matter, attacking);
+  update(attacking: boolean, matter?: Phaser.Physics.Matter.MatterPhysics) {
+    super.update(attacking, matter);
 
     if (this.currentAttackCoolDown === 0) {
       if (this.obj && attacking) {
@@ -56,7 +56,12 @@ export class MouthCell extends Cell {
       this.currentAttackCoolDown -= 1;
     }
 
-    if (this.obj && this.currentAttackFrames > 0 && this.target?.obj) {
+    if (
+      this.obj &&
+      this.currentAttackFrames > 0 &&
+      this.target?.obj &&
+      matter
+    ) {
       this.currentAttackFrames -= 1;
 
       const dirToCell = pointDir(

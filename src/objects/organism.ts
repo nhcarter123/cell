@@ -28,6 +28,11 @@ interface IBounds {
   y: IBound;
 }
 
+export interface IAvailableSpot {
+  pos: Vector;
+  availableOffsets: number[];
+}
+
 export class Organism {
   public isPlayer: boolean;
   public brain?: BrainCell;
@@ -388,22 +393,80 @@ export class Organism {
   }
 
   overlapsWith(occupiedSpots: Vector[], spot: ISpotAndOffset): boolean {
-    return this.cells.some((cell) =>
-      occupiedSpots.some((occupiedSpot) =>
-        cell.occupiedSpots.some(
-          (occSpot) =>
+    const transformedOccupiedSpots = occupiedSpots.map((occupiedSpot) =>
+      rotateVector({ x: 0, y: 0 }, occupiedSpot, spot.offset + 90 + 60)
+    );
+
+    return this.cells.some((cell) => {
+      const transformedCellOccupiedSpots = cell.occupiedSpots.map(
+        (occupiedSpot) =>
+          rotateVector({ x: 0, y: 0 }, occupiedSpot, cell.angleOffset + 90 + 60)
+      );
+
+      return transformedOccupiedSpots.some((occupiedSpot) =>
+        transformedCellOccupiedSpots.some((occSpot) => {
+          return (
             floatEquals(
               cell.offset.x + occSpot.x,
               spot.pos.x + occupiedSpot.x
             ) &&
             floatEquals(cell.offset.y + occSpot.y, spot.pos.y + occupiedSpot.y)
-        )
-      )
-    );
+          );
+        })
+      );
+    });
   }
 
-  getAvailableSpots(cells: Cell[], requiredAngle?: number): Vector[] {
-    const storedSpots: Vector[] = [];
+  // overlapsWith(
+  //   occupiedSpots: Vector[],
+  //   spot: ISpotAndOffset,
+  //   startAngle: number
+  // ): boolean {
+  //   const transformedOccupiedSpots = occupiedSpots.map((occupiedSpot) =>
+  //     rotateVector(
+  //       { x: 0, y: 0 },
+  //       occupiedSpot,
+  //       spot.offset + 90 + 60 - startAngle
+  //     )
+  //   );
+  //
+  //   return this.cells.some((cell) => {
+  //     // const transformedCellOccupiedSpots = cell.occupiedSpots.map(
+  //     //   (occupiedSpot) =>
+  //     //     rotateVector({ x: 0, y: 0 }, occupiedSpot, cell.angleOffset + 90 + 60)
+  //     // );
+  //
+  //     return transformedOccupiedSpots.some((occupiedSpot) =>
+  //       cell.occupiedSpots.some((occSpot) => {
+  //         return (
+  //           floatEquals(
+  //             cell.offset.x + occSpot.x,
+  //             spot.pos.x + occupiedSpot.x
+  //           ) &&
+  //           floatEquals(cell.offset.y + occSpot.y, spot.pos.y + occupiedSpot.y)
+  //         );
+  //       })
+  //     );
+  //   });
+  // }
+
+  // overlapsWith(occupiedSpots: Vector[], spot: ISpotAndOffset): boolean {
+  //   return this.cells.some((cell) =>
+  //     occupiedSpots.some((occupiedSpot) =>
+  //       cell.occupiedSpots.some(
+  //         (occSpot) =>
+  //           floatEquals(
+  //             cell.offset.x + occSpot.x,
+  //             spot.pos.x + occupiedSpot.x
+  //           ) &&
+  //           floatEquals(cell.offset.y + occSpot.y, spot.pos.y + occupiedSpot.y)
+  //       )
+  //     )
+  //   );
+  // }
+
+  getAvailableSpots(cells: Cell[]): IAvailableSpot[] {
+    const storedSpots: IAvailableSpot[] = [];
     const shapes: Vector[] = cells.flatMap((cell) =>
       cell.occupiedSpots.map((occupiedSpot) =>
         addVectors(occupiedSpot, cell.offset)
@@ -411,21 +474,25 @@ export class Organism {
     );
 
     if (!this.cells.length) {
-      return [{ x: 0, y: 0 }];
+      return [{ pos: { x: 0, y: 0 }, availableOffsets: [] }];
     }
 
     this.cells
-      .flatMap((cell) => cell.getSurroundingAvailableSpots(requiredAngle))
+      .flatMap((cell) => cell.getSurroundingAvailableSpots())
       .forEach((spot) => {
         const overlaps = this.overlapsWith(shapes, spot);
-
         if (!overlaps) {
           const duplicateSpot = storedSpots.find((storedSpot) =>
-            pointsEqual(storedSpot, spot.pos)
+            pointsEqual(storedSpot.pos, spot.pos)
           );
 
-          if (!duplicateSpot) {
-            storedSpots.push(spot.pos);
+          if (duplicateSpot) {
+            duplicateSpot.availableOffsets.push(spot.offset);
+          } else {
+            storedSpots.push({
+              pos: spot.pos,
+              availableOffsets: [spot.offset],
+            });
           }
         }
       });
