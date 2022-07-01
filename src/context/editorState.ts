@@ -2,7 +2,12 @@ import { Cell } from "../objects/cells/cell";
 import { ECellType } from "../events/eventCenter";
 import { SPACING } from "../scenes/gameScene";
 import { Vector } from "matter";
-import { addVectors, rotateVector, subtractVectors } from "../helpers/math";
+import {
+  addVectors,
+  angleDiff,
+  rotateVector,
+  safeAngle,
+} from "../helpers/math";
 
 class EditorState {
   public mouseCells: Cell[];
@@ -20,40 +25,32 @@ class EditorState {
 
     let rotate = 0;
     if (firstMouseCell && firstMouseCell.angleOffset !== this.angle) {
-      rotate = this.angle - firstMouseCell.angleOffset;
+      rotate = angleDiff(firstMouseCell.angleOffset, this.angle);
     }
 
     this.mouseCells.forEach((cell) => {
       if (cell.image) {
-        cell.image.x = x + cell.placingOffset.x * SPACING;
-        cell.image.y = y + cell.placingOffset.y * SPACING;
+        cell.image.x = x + cell.offset.x * SPACING;
+        cell.image.y = y + cell.offset.y * SPACING;
         cell.image.alpha = alpha;
       }
 
       if (rotate !== 0) {
-        cell.placingOffset = rotateVector(
-          { x: 0, y: 0 },
-          cell.placingOffset,
-          rotate - 180
-        );
-        cell.angleOffset += rotate;
+        cell.offset = rotateVector({ x: 0, y: 0 }, cell.offset, -rotate);
+        cell.angleOffset = safeAngle(cell.angleOffset - rotate);
       }
     });
   }
 
-  setMouseCellsOffset(offset: Vector, placing: boolean) {
+  setMouseCellsOffset(offset: Vector) {
     this.mouseCells.forEach((cell) => {
-      if (placing) {
-        cell.offset = addVectors(cell.placingOffset, offset);
-      } else {
-        cell.placingOffset = subtractVectors(cell.offset, offset);
-      }
+      cell.offset = addVectors(cell.offset, offset);
     });
   }
 
   rotateMouseCells() {
     this.mouseCells.forEach((cell) => {
-      cell.angleOffset = (cell.angleOffset + 60) % 360;
+      cell.angleOffset = safeAngle(cell.angleOffset + 60);
 
       if (cell.image) {
         cell.image.angle = cell.angleOffset;

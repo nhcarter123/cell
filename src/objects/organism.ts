@@ -44,6 +44,7 @@ export class Organism {
   private vel: Vector;
   private angVel: number;
   public targetDir: number;
+  public bodyOutline?: Phaser.GameObjects.Graphics;
 
   constructor(isPlayer: boolean, x: number, y: number, cells: Cell[]) {
     this.isPlayer = isPlayer;
@@ -63,6 +64,7 @@ export class Organism {
   ) {
     this.ocean = ocean;
 
+    this.bodyOutline = add.graphics();
     this.cells.forEach((cell) => cell.create(this, add, matter));
 
     if (matter) {
@@ -74,6 +76,23 @@ export class Organism {
     this.syncCells(matter);
   }
 
+  createBones(matter: Phaser.Physics.Matter.MatterPhysics, cell: Cell) {
+    if (cell.isBone && cell.obj?.parent === cell.obj) {
+      const boneCells = this.aggregateBone(cell);
+
+      if (boneCells.length > 1) {
+        const parts = boneCells.map((c) => {
+          c.obj && matter.world.remove(c.obj);
+          c.obj = c.createBody(matter, this);
+
+          return c.obj;
+        });
+
+        const compound = matter.body.create({ parts });
+        matter.world.add(compound);
+      }
+    }
+  }
   syncLinks(matter: Phaser.Physics.Matter.MatterPhysics, cell: Cell) {
     if (cell.obj) {
       cell.links = compact(
@@ -91,7 +110,11 @@ export class Organism {
 
         linkableCells.forEach((c) => {
           if (c.health > 0) {
-            this.createLink(matter, cell, c);
+            if (c.obj?.parent !== c.obj && cell.obj?.parent !== cell.obj) {
+              //
+            } else {
+              this.createLink(matter, cell, c);
+            }
           }
         });
       }
@@ -103,26 +126,44 @@ export class Organism {
       const offset1 = rotateVector(
         { x: 0, y: 0 },
         { x: c1.imageOffset.x - 0.5, y: c1.imageOffset.y - 0.5 },
-        c1.angleOffset
+        c1.angleOffset + 180
       );
 
       const offset2 = rotateVector(
         { x: 0, y: 0 },
         { x: c2.imageOffset.x - 0.5, y: c2.imageOffset.y - 0.5 },
-        c2.angleOffset
+        c2.angleOffset + 180
       );
 
-      const link = matter.add.constraint(c1.obj, c2.obj, SPACING, STIFFNESS, {
-        damping: DAMPING,
-        pointA: {
-          x: -offset1.x * SPACING,
-          y: -offset1.y * SPACING,
-        },
-        pointB: {
-          x: -offset2.x * SPACING,
-          y: -offset2.y * SPACING,
-        },
-      });
+      const link = matter.add.constraint(
+        c1.obj.parent,
+        c2.obj.parent,
+        SPACING,
+        STIFFNESS,
+        {
+          damping: DAMPING,
+          pointA: {
+            x:
+              c1.obj.position.x -
+              c1.obj.parent.position.x -
+              offset1.x * SPACING,
+            y:
+              c1.obj.position.y -
+              c1.obj.parent.position.y -
+              offset1.y * SPACING,
+          },
+          pointB: {
+            x:
+              c2.obj.position.x -
+              c2.obj.parent.position.x -
+              offset2.x * SPACING,
+            y:
+              c2.obj.position.y -
+              c2.obj.parent.position.y -
+              offset2.y * SPACING,
+          },
+        }
+      );
 
       c1.links.push({
         cell: c2,
@@ -190,14 +231,17 @@ export class Organism {
   calcCenterOfMass() {
     let xTotal = 0;
     let yTotal = 0;
+    let totalMass = 0;
     let angTotal = 0;
     let totalCells = 0;
 
     for (const cell of this.cells) {
       if (cell.obj) {
-        xTotal += cell.obj.position.x;
-        yTotal += cell.obj.position.y;
-        totalCells++;
+        // console.log(cell.obj.position.x);
+        xTotal += cell.obj.position.x * cell.obj.mass;
+        yTotal += cell.obj.position.y * cell.obj.mass;
+        totalMass += cell.obj.mass;
+        totalCells += 1;
 
         const cellAndAngle = cell.getFirstNeighborCell();
 
@@ -209,13 +253,34 @@ export class Organism {
             cellAndAngle.cell.obj.position.y
           );
 
-          const diff = angleDiff(
-            rotation - cellAndAngle.angle,
-            RadToDeg(cell.obj.angle) - cell.angleOffset
-          );
+          const phyAngle =
+            RadToDeg(cell.obj.parent.angle) -
+            cell.angleOffset +
+            cell.physicsAngleOffset;
 
-          // cell.obj.torque = 0.005 * diff - cell.obj.angularVelocity;
-          cell.obj.torque = 0.005 * diff;
+          const diff = angleDiff(phyAngle, rotation - cellAndAngle.angle);
+
+          // if (this.isPlayer) {
+          //   console.log(diff);
+          // }
+
+          // this.targetDir -
+          // saveData.direction +
+          // 90
+
+          cell.obj.torque -= 0.001 * diff + cell.obj.angularVelocity / 3;
+
+          // const diff = angleDiff(
+          //   RadToDeg(cell.obj.angle) -
+          //   cell.angleOffset +
+          //   this.targetDir -
+          //   saveData.direction +
+          //   90,
+          //   rotation - cellAndAngle.angle
+          // );
+          // if (cell.obj.parent !== cell.obj) {
+          //   cell.obj.parent.torque += 0.00001 * diff; //- cell.obj.angularVelocity / 3;
+          // }
 
           angTotal += angleDiff(
             rotation - cellAndAngle.angle + saveData.direction - 90,
@@ -225,9 +290,14 @@ export class Organism {
       }
     }
 
+    // if (this.isPlayer) {
+    //   console.log(xTotal / totalMass);
+    // }
+    // console.log(totalMass);
+
     this.avgPosition = {
-      x: xTotal / totalCells,
-      y: yTotal / totalCells,
+      x: xTotal / totalMass,
+      y: yTotal / totalMass,
     };
     this.avgDiff = angTotal / totalCells;
   }
@@ -281,6 +351,12 @@ export class Organism {
           cell.obj.position.x,
           cell.obj.position.y
         );
+        const distToCenter = pointDist(
+          this.avgPosition.x,
+          this.avgPosition.y,
+          cell.obj.position.x,
+          cell.obj.position.y
+        );
 
         // replace with vector rotation
         const dist = pointDist(0, 0, cell.offset.x, cell.offset.y);
@@ -314,12 +390,13 @@ export class Organism {
           targetPosY
         );
 
-        const turnFactor = 0.0000004 * Math.max(distToTarget, 10);
+        const turnFactor = 0.0000008 * Math.min(distToTarget, 100);
         const moveFactor =
-          0.0000005 * (120 - Math.min(Math.abs(this.avgDiff), 120));
+          (0.0001 * (120 - Math.min(Math.abs(this.avgDiff), 120))) /
+          (distToCenter + 40);
         // const turnFactor = 0.0001;
 
-        matter.applyForce(cell.obj, {
+        matter.applyForce(cell.obj.parent, {
           x:
             lengthDirX(
               turnFactor,
@@ -331,6 +408,35 @@ export class Organism {
               angleFromCenterToCell - 90 * Math.sign(diff)
             ) + lengthDirY(moveFactor, this.targetDir),
         });
+
+        // console.log(distToTarget);
+        // console.log(angleFromCenterToCell);
+
+        // if (distToCenter < 10) {
+        // cell.obj.parent.torque -= 0.0001 * cell.obj.parent.mass * diff;
+        // }
+
+        // rotate bones
+        if (cell.obj.parent !== cell.obj) {
+          if (cell.obj.parent.parts[1] === cell.obj) {
+            const diff2 = angleDiff(
+              RadToDeg(cell.obj.parent.angle),
+              this.targetDir
+            );
+
+            cell.obj.parent.torque -= 0.00002 * cell.obj.parent.mass * diff2;
+          }
+        }
+
+        // matter.applyForce(cell.obj.parent, {
+        //   x: lengthDirX(moveFactor, this.targetDir),
+        //   y: lengthDirY(moveFactor, this.targetDir),
+        // });
+
+        // cell.obj.torque = 0.005 * diff - cell.obj.angularVelocity;
+        // cell.obj.parent.torque +=
+        //   -(0.0001 * cell.obj.parent.mass) * diff -
+        //   cell.obj.parent.angularVelocity / 5;
 
         // matter.applyForce(cell.obj, {
         //   x: (targetPosX - cell.obj.position.x) / 2000000,
@@ -348,6 +454,29 @@ export class Organism {
       }
     }
     // }
+  }
+
+  // todo this probably fails mustBePlacedPerpendicular
+  aggregateBone(startingCell: Cell): Cell[] {
+    const boneCells: Cell[] = [];
+    const cellsToCheck = [startingCell];
+
+    this.cells.forEach((cell) => {
+      cell.beenScanned = false;
+    });
+
+    while (cellsToCheck.length) {
+      const cell = cellsToCheck.pop();
+
+      if (cell?.isBone && !cell.beenScanned) {
+        cell.beenScanned = true;
+
+        boneCells.push(cell);
+        cellsToCheck.push(...cell.getSurroundingCells());
+      }
+    }
+
+    return boneCells;
   }
 
   setConnected(cellToRemove?: Cell) {
@@ -375,32 +504,39 @@ export class Organism {
   }
 
   syncCells(matter?: Phaser.Physics.Matter.MatterPhysics) {
-    this.cells = compact(
-      this.cells.map((cell) => {
-        matter && this.syncLinks(matter, cell);
+    if (matter) {
+      this.cells = compact(
+        this.cells.map((cell) => {
+          if (cell.health <= 0) {
+            cell.destroy(matter);
+          } else {
+            return cell;
+          }
+        })
+      );
 
-        if (cell.health <= 0) {
-          matter && cell.destroy(matter);
-        } else {
-          return cell;
-        }
-      })
-    );
+      this.cells.forEach((cell) => this.createBones(matter, cell));
+      this.cells.forEach((cell) => this.syncLinks(matter, cell));
+    }
 
     this.cells.forEach((cell) => cell.setChildrenCells());
 
     this.setConnected();
   }
 
-  overlapsWith(occupiedSpots: Vector[], spot: ISpotAndOffset): boolean {
+  overlapsWith(
+    occupiedSpots: Vector[],
+    spot: ISpotAndOffset,
+    startAngle: number
+  ): boolean {
     const transformedOccupiedSpots = occupiedSpots.map((occupiedSpot) =>
-      rotateVector({ x: 0, y: 0 }, occupiedSpot, spot.offset + 90 + 60)
+      rotateVector({ x: 0, y: 0 }, occupiedSpot, spot.offset - startAngle)
     );
 
     return this.cells.some((cell) => {
       const transformedCellOccupiedSpots = cell.occupiedSpots.map(
         (occupiedSpot) =>
-          rotateVector({ x: 0, y: 0 }, occupiedSpot, cell.angleOffset + 90 + 60)
+          rotateVector({ x: 0, y: 0 }, occupiedSpot, cell.angleOffset - 30)
       );
 
       return transformedOccupiedSpots.some((occupiedSpot) =>
@@ -465,11 +601,14 @@ export class Organism {
   //   );
   // }
 
-  getAvailableSpots(cells: Cell[]): IAvailableSpot[] {
+  getAvailableSpots(cells: Cell[], startAngle: number): IAvailableSpot[] {
     const storedSpots: IAvailableSpot[] = [];
     const shapes: Vector[] = cells.flatMap((cell) =>
       cell.occupiedSpots.map((occupiedSpot) =>
-        addVectors(occupiedSpot, cell.offset)
+        addVectors(
+          rotateVector({ x: 0, y: 0 }, occupiedSpot, cell.angleOffset - 30),
+          cell.offset
+        )
       )
     );
 
@@ -480,7 +619,8 @@ export class Organism {
     this.cells
       .flatMap((cell) => cell.getSurroundingAvailableSpots())
       .forEach((spot) => {
-        const overlaps = this.overlapsWith(shapes, spot);
+        const overlaps = this.overlapsWith(shapes, spot, startAngle);
+
         if (!overlaps) {
           const duplicateSpot = storedSpots.find((storedSpot) =>
             pointsEqual(storedSpot.pos, spot.pos)

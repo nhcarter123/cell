@@ -4,6 +4,7 @@ import { TSavedCell } from "../../context/saveData";
 import { Organism } from "../organism";
 import DegToRad = Phaser.Math.DegToRad;
 import { rotateVector } from "../../helpers/math";
+import { BodyType } from "matter";
 
 export class SpikeCell extends Cell {
   constructor({ offset, angleOffset }: Partial<TSavedCell>) {
@@ -16,7 +17,9 @@ export class SpikeCell extends Cell {
       imageKey: EImageKey.SpikeCell,
       isBody: false,
       mustPlacePerpendicular: true,
-      imageOffset: { x: 0.5, y: 0.75 },
+      isBone: true,
+      imageOffsetEditor: { x: 0.5, y: 0.75 },
+      imageOffset: { x: 0.5, y: 0.6 },
       occupiedSpots: [
         { x: 0, y: 0 },
         { x: 0.5, y: -RAD_3_OVER_2 },
@@ -24,18 +27,21 @@ export class SpikeCell extends Cell {
     });
   }
 
-  createBody(matter: Phaser.Physics.Matter.MatterPhysics, org: Organism) {
+  createBody(
+    matter: Phaser.Physics.Matter.MatterPhysics,
+    org: Organism
+  ): BodyType {
     const offset = rotateVector(
       { x: 0, y: 0 },
-      { x: this.imageOffset.x - 0.5, y: this.imageOffset.y - 0.5 },
-      this.angleOffset
+      { x: this.imageOffset.x - 0.5, y: this.imageOffset.y - 0.4 },
+      this.angleOffset + 180
     );
 
-    this.obj = matter.add.trapezoid(
+    return matter.bodies.trapezoid(
       org.avgPosition.x + (this.offset.x + offset.x) * SPACING,
       org.avgPosition.y + (this.offset.y + offset.y) * SPACING,
       24,
-      96,
+      84,
       1,
       {
         restitution: 0,

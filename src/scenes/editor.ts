@@ -11,6 +11,7 @@ import {
   loadOrganism,
   saveData,
   saveOrganism,
+  saveDataToLocalStorage,
 } from "../context/saveData";
 import { Cell } from "../objects/cells/cell";
 import OutlinePipelinePlugin from "phaser3-rex-plugins/plugins/outlinepipeline-plugin";
@@ -84,6 +85,7 @@ export default class Editor extends GameScene {
     });
     eventsCenter.on(EEvent.Continue, () => {
       saveData.organism = saveOrganism(this.organism);
+      saveDataToLocalStorage();
 
       this.scene.sleep(ESceneKey.EditorGUI);
       this.scene.switch(ESceneKey.Ocean);
@@ -94,11 +96,19 @@ export default class Editor extends GameScene {
     });
 
     const rKey = this.input.keyboard.addKey("R");
+    const nKey = this.input.keyboard.addKey("N");
 
     rKey.on("down", () => {
       // editorState.rotateMouseCells();
       // this.availableSpots = this.getAvailableSpots();
       // this.drawAvailableSpots();
+    });
+    nKey.on("down", () => {
+      saveData.organism = saveOrganism(this.organism);
+      saveDataToLocalStorage();
+
+      this.organism.cells.forEach((cell) => cell.destroy());
+      this.organism.cells = [];
     });
 
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -144,6 +154,7 @@ export default class Editor extends GameScene {
     }
 
     const mousePos = this.getMousePos();
+    const hoveredCell = this.getHoveredCell(mousePos.x, mousePos.y);
 
     if (editorState.mouseCells.length) {
       this.heldCellDuration += 1;
@@ -164,7 +175,7 @@ export default class Editor extends GameScene {
               mousePos.x,
               mousePos.y
             );
-            const diff = Math.abs(angleDiff(offset, dir - 60));
+            const diff = Math.abs(angleDiff(offset, dir - 90));
 
             if (diff < smallestDiff) {
               smallestDiff = diff;
@@ -179,7 +190,7 @@ export default class Editor extends GameScene {
           );
 
           if (clicked) {
-            editorState.setMouseCellsOffset(hoveredSpot.pos, true);
+            editorState.setMouseCellsOffset(hoveredSpot.pos);
 
             this.organism.addCells(editorState.mouseCells);
 
@@ -188,14 +199,13 @@ export default class Editor extends GameScene {
             this.availableSpots = [];
             this.drawAvailableSpots();
             editorState.mouseCells = [];
+            editorState.angle = 0;
           }
         } else {
           editorState.setMouseCellsPosition(mousePos.x, mousePos.y, 0.5);
         }
       }
     } else {
-      const hoveredCell = this.getHoveredCell(mousePos.x, mousePos.y);
-
       if (hoveredCell !== this.hoveredCell) {
         if (hoveredCell) {
           this.organism.setConnected(hoveredCell);
@@ -212,19 +222,22 @@ export default class Editor extends GameScene {
         }
       }
 
-      this.hoveredCell = hoveredCell;
-
-      if (this.hoveredCell?.image && clicked) {
+      if (hoveredCell?.image && clicked) {
         this.organism.removeCells(this.highlightedCells);
         editorState.mouseCells = this.highlightedCells;
 
-        editorState.setMouseCellsOffset(this.hoveredCell.offset, false);
+        editorState.setMouseCellsOffset({
+          x: -hoveredCell.offset.x,
+          y: -hoveredCell.offset.y,
+        });
 
         this.availableSpots = this.getAvailableSpots();
         this.drawAvailableSpots();
         this.clearHighlight();
       }
     }
+
+    this.hoveredCell = hoveredCell;
 
     if (this.input.mousePointer.leftButtonReleased()) {
       this.leftButtonPressed = false;
@@ -328,6 +341,10 @@ export default class Editor extends GameScene {
     //     ? editorState.mouseCells[0].angleOffset
     //     : undefined;
 
-    return this.organism.getAvailableSpots(editorState.mouseCells);
+    const startAngle = editorState.mouseCells[0]
+      ? editorState.mouseCells[0].angleOffset
+      : 0;
+
+    return this.organism.getAvailableSpots(editorState.mouseCells, startAngle);
   }
 }

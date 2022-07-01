@@ -5,9 +5,14 @@ import { FatCell } from "../objects/cells/fatCell";
 import { BrainCell } from "../objects/cells/brainCell";
 import { Organism } from "../objects/organism";
 import { SpikeCell } from "../objects/cells/spikeCell";
+import { BoneCell } from "../objects/cells/boneCell";
 
 export type TSavedCell = Pick<Cell, "offset" | "angleOffset">;
 type TSavedOrganism = Pick<Organism, "isPlayer">;
+
+enum ELocalStorageKey {
+  saveData = "saveData",
+}
 
 export interface ISavedCell extends TSavedCell {
   type: ECellType;
@@ -21,24 +26,34 @@ interface ISavedOrganism extends TSavedOrganism {
 
 interface ISaveData {
   organism: ISavedOrganism;
+  organismHistory: ISavedOrganism[];
   direction: number;
 }
 
-export const saveData: ISaveData = {
-  direction: 90,
-  organism: {
-    isPlayer: true,
-    x: 0,
-    y: 0,
-    cells: [
-      {
-        type: ECellType.BrainCell,
-        angleOffset: 0,
-        offset: { x: 0, y: 0 },
+const savedData = localStorage.getItem(ELocalStorageKey.saveData);
+
+export const saveData: ISaveData = savedData
+  ? (JSON.parse(savedData) as ISaveData)
+  : {
+      direction: 90,
+      organismHistory: [],
+      organism: {
+        isPlayer: true,
+        x: 0,
+        y: 0,
+        cells: [
+          {
+            type: ECellType.BrainCell,
+            angleOffset: 0,
+            offset: { x: 0, y: 0 },
+          },
+        ],
+        // cells: star,
       },
-    ],
-    // cells: star,
-  },
+    };
+
+export const saveDataToLocalStorage = () => {
+  localStorage.setItem(ELocalStorageKey.saveData, JSON.stringify(saveData));
 };
 
 export const updateFacingDirection = () => {
@@ -71,6 +86,8 @@ export const createCellFromType = (
       return new FatCell(saveData);
     case ECellType.SpikeCell:
       return new SpikeCell(saveData);
+    case ECellType.BoneCell:
+      return new BoneCell(saveData);
   }
 };
 
@@ -86,6 +103,9 @@ const getTypeFromCell = (cell: Cell): ECellType => {
   }
   if (cell instanceof SpikeCell) {
     return ECellType.SpikeCell;
+  }
+  if (cell instanceof BoneCell) {
+    return ECellType.BoneCell;
   }
 
   return ECellType.FatCell;

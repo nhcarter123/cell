@@ -37,68 +37,71 @@ export class MouthCell extends Cell {
   update(attacking: boolean, matter?: Phaser.Physics.Matter.MatterPhysics) {
     super.update(attacking, matter);
 
-    if (this.currentAttackCoolDown === 0) {
-      if (this.obj && attacking) {
-        const findResult = this.organism?.ocean?.findClosestCell(
+    if (this.connected) {
+      if (this.currentAttackCoolDown === 0) {
+        if (this.obj && attacking) {
+          const findResult = this.organism?.ocean?.findClosestCell(
+            this.obj.position.x,
+            this.obj.position.y,
+            this.organism?.isPlayer
+          );
+
+          if (findResult && findResult.closestCellDist < RADIUS + 70) {
+            this.currentAttackCoolDown =
+              this.attackCoolDown + this.attackFrames;
+            this.currentAttackFrames = this.attackFrames + this.impulseFrames;
+            this.hitEnemies = [];
+            this.target = findResult.closestCell;
+          }
+        }
+      } else {
+        this.currentAttackCoolDown -= 1;
+      }
+
+      if (
+        this.obj &&
+        this.currentAttackFrames > 0 &&
+        this.target?.obj &&
+        matter
+      ) {
+        this.currentAttackFrames -= 1;
+
+        const dirToCell = pointDir(
           this.obj.position.x,
           this.obj.position.y,
+          this.target.obj.position.x,
+          this.target.obj.position.y
+        );
+
+        if (this.currentAttackFrames - this.attackFrames > 0) {
+          matter.applyForce(this.obj, {
+            x: lengthDirX(0.008, dirToCell),
+            y: lengthDirY(0.008, dirToCell),
+          });
+        }
+
+        // const dist = pointDist(
+        //   this.obj.position.x,
+        //   this.obj.position.y,
+        //   this.target.obj.position.x,
+        //   this.target.obj.position.y
+        // );
+
+        const hitCells = this.organism?.ocean?.findCellsWithinRadius(
+          this.obj.position.x,
+          this.obj.position.y,
+          RADIUS * 2 + 5,
           this.organism?.isPlayer
         );
 
-        if (findResult && findResult.closestCellDist < RADIUS + 70) {
-          this.currentAttackCoolDown = this.attackCoolDown + this.attackFrames;
-          this.currentAttackFrames = this.attackFrames + this.impulseFrames;
-          this.hitEnemies = [];
-          this.target = findResult.closestCell;
-        }
+        hitCells &&
+          hitCells.forEach((cell) => {
+            if (!this.hitEnemies.includes(cell)) {
+              cell.health -= this.damage;
+              this.hitEnemies.push(cell);
+            }
+          });
       }
-    } else {
-      this.currentAttackCoolDown -= 1;
-    }
-
-    if (
-      this.obj &&
-      this.currentAttackFrames > 0 &&
-      this.target?.obj &&
-      matter
-    ) {
-      this.currentAttackFrames -= 1;
-
-      const dirToCell = pointDir(
-        this.obj.position.x,
-        this.obj.position.y,
-        this.target.obj.position.x,
-        this.target.obj.position.y
-      );
-
-      if (this.currentAttackFrames - this.attackFrames > 0) {
-        matter.applyForce(this.obj, {
-          x: lengthDirX(0.008, dirToCell),
-          y: lengthDirY(0.008, dirToCell),
-        });
-      }
-
-      // const dist = pointDist(
-      //   this.obj.position.x,
-      //   this.obj.position.y,
-      //   this.target.obj.position.x,
-      //   this.target.obj.position.y
-      // );
-
-      const hitCells = this.organism?.ocean?.findCellsWithinRadius(
-        this.obj.position.x,
-        this.obj.position.y,
-        RADIUS * 2 + 5,
-        this.organism?.isPlayer
-      );
-
-      hitCells &&
-        hitCells.forEach((cell) => {
-          if (!this.hitEnemies.includes(cell)) {
-            cell.health -= this.damage;
-            this.hitEnemies.push(cell);
-          }
-        });
     }
   }
 }

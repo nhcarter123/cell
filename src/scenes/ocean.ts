@@ -1,8 +1,8 @@
-import { angleDiff, pointDir, pointDist } from "../helpers/math";
+import { pointDir, pointDist } from "../helpers/math";
 import { Organism } from "../objects/organism";
 import { Cell } from "../objects/cells/cell";
 import { compact } from "lodash";
-import GameScene, { EImageKey } from "./gameScene";
+import GameScene from "./gameScene";
 import { ESceneKey } from "../index";
 import { loadOrganism, saveData } from "../context/saveData";
 import star from "../savedOrganisms/star";
@@ -13,7 +13,6 @@ interface IFindResult {
 }
 
 export default class Ocean extends GameScene {
-  private debugCircle?: Phaser.GameObjects.Arc;
   private organisms: Organism[];
 
   constructor() {
@@ -27,8 +26,8 @@ export default class Ocean extends GameScene {
             y: 0,
           },
           debug: {
-            // showJoint: false,
-            // showBody: false,
+            showJoint: false,
+            showBody: false,
           },
         },
       },
@@ -62,8 +61,9 @@ export default class Ocean extends GameScene {
     const player = this.organisms.find((org) => org.isPlayer);
 
     if (player?.brain?.image) {
-      this.cameras.main.startFollow(player.brain.image, false, 0.01, 0.01);
+      this.cameras.main.startFollow(player.brain.image, false, 0.015, 0.015);
       this.cameras.main.fadeIn(1000);
+      this.cameras.main.zoom = 1.1;
       // this.cameras.main.setPosition(100), 100;
     }
   }

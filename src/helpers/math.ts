@@ -52,7 +52,7 @@ export const rotateVector = (
   point: Vector,
   angle: number
 ): Vector => {
-  const radians = DegToRad(180 - angle),
+  const radians = DegToRad(-angle),
     cos = Math.cos(radians),
     sin = Math.sin(radians),
     nx = cos * (point.x - origin.x) + sin * (point.y - origin.y) + origin.x,
@@ -71,4 +71,14 @@ export const floatEquals = (
 
 export const pointsEqual = (v1: Vector, v2: Vector): boolean => {
   return floatEquals(v1.x, v2.x) && floatEquals(v1.y, v2.y);
+};
+
+export const safeAngle = (angle: number): number => {
+  const ang = angle % 360;
+
+  if (ang < 0) {
+    return ang + 360;
+  }
+
+  return ang;
 };
