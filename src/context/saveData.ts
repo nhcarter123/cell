@@ -6,6 +6,7 @@ import { BrainCell } from "../objects/cells/brainCell";
 import { Organism } from "../objects/organism";
 import { SpikeCell } from "../objects/cells/spikeCell";
 import { BoneCell } from "../objects/cells/boneCell";
+import { getCenter } from "../helpers/math";
 
 export type TSavedCell = Pick<Cell, "offset" | "angleOffset">;
 type TSavedOrganism = Pick<Organism, "isPlayer">;
@@ -121,7 +122,7 @@ export const loadOrganism = (savedOrganism: ISavedOrganism): Organism => {
 };
 
 export const saveOrganism = (organism: Organism): ISavedOrganism => {
-  const center = organism.getCenter(); // todo tests if it should use center of mass instead
+  const center = getCenter(organism.getBounds()); // todo tests if it should use center of mass instead
 
   return {
     isPlayer: organism.isPlayer,

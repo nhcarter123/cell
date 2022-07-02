@@ -18,6 +18,7 @@ export class SpikeCell extends Cell {
       isBody: false,
       mustPlacePerpendicular: true,
       isBone: true,
+      hasBackground: false,
       imageOffsetEditor: { x: 0.5, y: 0.75 },
       imageOffset: { x: 0.5, y: 0.6 },
       occupiedSpots: [

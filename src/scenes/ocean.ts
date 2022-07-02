@@ -82,9 +82,7 @@ export default class Ocean extends GameScene {
     const mouseY = this.input.mousePointer.y + this.cameras.main.scrollY;
 
     this.organisms.forEach((org) =>
-      org.cells.forEach((cell) =>
-        cell.update(this.input.mousePointer.leftButtonDown(), this.matter)
-      )
+      org.update(this.input.mousePointer.leftButtonDown(), this.matter)
     );
 
     if (this.input.mousePointer.leftButtonDown()) {

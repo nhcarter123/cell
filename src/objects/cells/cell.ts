@@ -27,6 +27,7 @@ type TCellOverrides = Partial<
     | "imageOffsetEditor"
     | "occupiedSpots"
     | "mustPlacePerpendicular"
+    | "hasBackground"
   >
 >;
 
@@ -63,6 +64,7 @@ export class Cell {
 
   public offset: Vector;
 
+  public readonly hasBackground: boolean;
   public readonly isBone: boolean;
   public readonly mustPlacePerpendicular: boolean;
   public readonly mass: number;
@@ -96,6 +98,8 @@ export class Cell {
       overrides.mustPlacePerpendicular !== undefined
         ? overrides.mustPlacePerpendicular
         : false;
+    this.hasBackground =
+      overrides.hasBackground !== undefined ? overrides.hasBackground : true;
     this.mass = overrides.mass !== undefined ? overrides.mass : 1;
     this.isBone = overrides.isBone !== undefined ? overrides.isBone : false;
     this.imageOffset =

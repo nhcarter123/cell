@@ -49,6 +49,11 @@
   resolved "https://registry.npmjs.org/@types/estree/-/estree-0.0.39.tgz"
   integrity sha512-EYNwp3bU+98cpU4lAWYYL7Zz+2gryWH1qbdDTidVd6hkiR6weksdbMadyXKXNPEkQFhXM+hVO9ZygomHXp+AIw==
 
+"@types/hull.js@^1.0.2":
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/@types/hull.js/-/hull.js-1.0.2.tgz#8a6b90967f133c77b6352c9c1d09aa972679d79e"
+  integrity sha512-7zNbT+oMjnyVEQTNArmUdlLWxdqVsxCChQq1wmc1gATAjKC/45I/rBk3JBGJSID5IAqWveRbWfzfCWGjRXZm2w==
+
 "@types/lodash@^4.14.182":
   version "4.14.182"
   resolved "https://registry.npmjs.org/@types/lodash/-/lodash-4.14.182.tgz"
@@ -280,6 +285,11 @@ has@^1.0.3:
   integrity sha512-f2dvO0VU6Oej7RkWJGrehjbzMAjFp5/VKPp5tTpWIV4JHHZK1/BxbFRtf/siA2SWTe09caDmVtYYzWEIbBS4zw==
   dependencies:
     function-bind "^1.1.1"
+
+hull.js@^1.0.2:
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/hull.js/-/hull.js-1.0.2.tgz#1e7c4b10990e2ee491234b9ec100321aa2b0899a"
+  integrity sha512-C1VJyrSnWqU7tp3T3QzViEdopHLm/G5ocnk8zBuS5BROaleDMBePvmgc7VdeNxR4BOzq/nzxkLFUS1L8S/wXTA==
 
 inflight@^1.0.4:
   version "1.0.6"

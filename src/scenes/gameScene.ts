@@ -2,7 +2,7 @@
 export const RADIUS = 20;
 export const PADDING = 4;
 export const SPACING = RADIUS * 2 + PADDING;
-export const STIFFNESS = 0.001;
+export const STIFFNESS = 0.004;
 export const DAMPING = 0.1;
 export const MASS = 1;
 export const RAD_3_OVER_2 = Math.sqrt(3) / 2;

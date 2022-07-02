@@ -1,6 +1,7 @@
 import DegToRad = Phaser.Math.DegToRad;
 import RadToDeg = Phaser.Math.RadToDeg;
 import { Vector } from "matter";
+import { IBounds } from "../objects/organism";
 
 export const lerp = (start: number, end: number, amt: number) =>
   (1 - amt) * start + amt * end;
@@ -81,4 +82,18 @@ export const safeAngle = (angle: number): number => {
   }
 
   return ang;
+};
+
+export const getMaxDiff = (bounds: IBounds): number => {
+  return Math.max(
+    Math.abs(bounds.x.min - bounds.x.max),
+    Math.abs(bounds.y.min - bounds.y.max)
+  );
+};
+
+export const getCenter = (bounds: IBounds): Vector => {
+  return {
+    x: (bounds.x.min + bounds.x.max) / 2,
+    y: (bounds.y.min + bounds.y.max) / 2,
+  };
 };

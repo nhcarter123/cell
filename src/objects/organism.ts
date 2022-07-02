@@ -4,6 +4,8 @@ import {
   addVectors,
   angleDiff,
   floatEquals,
+  getCenter,
+  getMaxDiff,
   lengthDirX,
   lengthDirY,
   pointDir,
@@ -12,7 +14,7 @@ import {
   rotateVector,
 } from "../helpers/math";
 import { compact } from "lodash";
-import { DAMPING, SPACING, STIFFNESS } from "../scenes/gameScene";
+import { DAMPING, RADIUS, SPACING, STIFFNESS } from "../scenes/gameScene";
 import { Vector } from "matter";
 import Ocean from "../scenes/ocean";
 import RadToDeg = Phaser.Math.RadToDeg;
@@ -23,7 +25,7 @@ interface IBound {
   max: number;
 }
 
-interface IBounds {
+export interface IBounds {
   x: IBound;
   y: IBound;
 }
@@ -33,18 +35,21 @@ export interface IAvailableSpot {
   availableOffsets: number[];
 }
 
+const MAX_SHADER_CELLS = 50;
+const SKIN_COLOR = Phaser.Display.Color.ValueToColor("#c8b086").color;
+const SKIN_RESOLUTION = 50;
+
 export class Organism {
   public isPlayer: boolean;
   public brain?: BrainCell;
   public cells: Cell[];
   public avgPosition: MatterJS.Vector;
-  public composite?: MatterJS.CompositeType;
   public ocean?: Ocean;
   private avgDiff: number;
   private vel: Vector;
   private angVel: number;
   public targetDir: number;
-  public bodyOutline?: Phaser.GameObjects.Graphics;
+  private skinShader?: Phaser.GameObjects.Shader;
 
   constructor(isPlayer: boolean, x: number, y: number, cells: Cell[]) {
     this.isPlayer = isPlayer;
@@ -64,16 +69,108 @@ export class Organism {
   ) {
     this.ocean = ocean;
 
-    this.bodyOutline = add.graphics();
+    this.skinShader = add.shader("skin", 0, 0);
+    this.skinShader.depth = matter ? 10 : -10;
+    // console.log(this.skinShader.uniforms.resolution);
+    // .setRenderToTexture("skinTexture");
+    // this.skinShader.setUniform("resolution.value", [100, 100]);
+    // this.skinShader.setUniform("resolution.value", { x: 100, y: 100 });
+    // this.skinShader.setUniform("resolution.value", [{ x: 100, y: 100 }]);
+    // this.skinShader.setUniform("resolution.value", [50, 50]);
+    // this.skinShader.setUniform("resolution.value.x", 50);
+    // this.skinShader.setUniform("resolution.value.y", 50);
+
+    // this.skinTexture = add.image(0, 0, "skinTexture");
     this.cells.forEach((cell) => cell.create(this, add, matter));
 
-    if (matter) {
-      this.composite = matter.composite.create({
-        bodies: compact(this.cells.map((cell) => cell.obj)),
-      });
+    this.syncCells(matter);
+  }
+
+  update(attacking: boolean, matter?: Phaser.Physics.Matter.MatterPhysics) {
+    this.cells.forEach((cell) =>
+      cell.update(this.isPlayer ? attacking : true, matter)
+    );
+
+    const padding = RADIUS + 10;
+    const bounds = this.getBounds(padding);
+    const center = getCenter(bounds);
+    const scale = getMaxDiff(bounds);
+    const radius = 30 / scale;
+    // console.log(maxDiff);
+
+    const cellOffsets = [];
+
+    // console.log(center.x / maxDiff);
+
+    for (let i = 0; i < MAX_SHADER_CELLS; i++) {
+      const cell = this.cells[i];
+      if (cell?.hasBackground && cell.image && cell.health === cell.maxHealth) {
+        // if (matter && cell.obj) {
+        //   cellOffsets.push(cell.obj.position.x / scale + 0.5);
+        //   cellOffsets.push(cell.obj.position.y) / scale + 0.5;
+        // } else if (cell.image) {
+        cellOffsets.push((cell.image.x - center.x) / scale + 0.5);
+        cellOffsets.push((-cell.image.y + center.y) / scale + 0.5);
+        // }
+      } else {
+        cellOffsets.push(-1);
+        cellOffsets.push(-1);
+      }
     }
 
-    this.syncCells(matter);
+    if (this.skinShader) {
+      this.skinShader.setUniform("cells.value", cellOffsets);
+      this.skinShader.setUniform("radius.value", radius);
+      this.skinShader.x = center.x;
+      this.skinShader.y = center.y;
+
+      // console.log(this.skinShader.uniforms);
+      this.skinShader.scale = scale / 128;
+    }
+
+    // const cellOffsets = matter
+    //   ? this.cells.map((cell) => ({
+    //       x: cell.obj?.position.x,
+    //       y: cell.obj?.position.y,
+    //     }))
+    //   : this.cells.map((cell) => ({
+    //       x: cell.offset.x * SPACING,
+    //       y: cell.offset.y * SPACING,
+    //     }));
+    //
+    // if (this.bodyOutline) {
+    //   // @ts-ignore
+    //   const points: Vector[] = hull(cellOffsets, 250, [".x", ".y"]);
+    //
+    //   this.bodyOutline.clear();
+    //   // this.bodyOutline.strokePath()
+    //   this.bodyOutline.fillStyle(SKIN_COLOR);
+    //   this.bodyOutline.strokePoints(points, true, true);
+    //   this.bodyOutline.fill();
+    // }
+
+    // const cellOffsets = matter
+    //   ? this.cells.map((cell) => ({
+    //     x: cell.obj?.position.x,
+    //     y: cell.obj?.position.y,
+    //   }))
+    //   : this.cells.map((cell) => ({
+    //     x: cell.offset.x * SPACING,
+    //     y: cell.offset.y * SPACING,
+    //   }));
+
+    // if (this.bodyOutline) {
+    //   const points = this.cells.map((cell) => ({
+    //     x: cell.offset.x * SPACING,
+    //     y: cell.offset.y * SPACING,
+    //   }));
+    //
+    //   this.bodyOutline.clear();
+    //   // this.bodyOutline.strokePath()
+    //   this.bodyOutline.fillStyle(SKIN_COLOR);
+    //   this.bodyOutline.strokePoints(points, true, true);
+    //   this.bodyOutline.fill();
+    // }
   }
 
   createBones(matter: Phaser.Physics.Matter.MatterPhysics, cell: Cell) {
@@ -177,53 +274,37 @@ export class Organism {
     }
   }
 
-  getMaxDiff(): number {
-    const bounds = this.getBounds();
-
-    return Math.max(
-      Math.abs(bounds.x.min - bounds.x.max),
-      Math.abs(bounds.y.min - bounds.y.max)
-    );
-  }
-
-  getCenter(): Vector {
-    const bounds = this.getBounds();
-
-    return {
-      x: (bounds.x.min + bounds.x.max) / 2,
-      y: (bounds.y.min + bounds.y.max) / 2,
-    };
-  }
-
-  getBounds(): IBounds {
+  getBounds(padding = 0): IBounds {
     let minX = 0;
     let maxX = 0;
     let minY = 0;
     let maxY = 0;
 
     this.cells.forEach((cell) => {
-      if (cell.offset.x < minX) {
-        minX = cell.offset.x;
-      }
-      if (cell.offset.x > maxX) {
-        maxX = cell.offset.x;
-      }
-      if (cell.offset.y < minY) {
-        minY = cell.offset.y;
-      }
-      if (cell.offset.y > maxY) {
-        maxY = cell.offset.y;
+      if (cell.image) {
+        if (cell.image.x < minX) {
+          minX = cell.image.x;
+        }
+        if (cell.image.x > maxX) {
+          maxX = cell.image.x;
+        }
+        if (cell.image.y < minY) {
+          minY = cell.image.y;
+        }
+        if (cell.image.y > maxY) {
+          maxY = cell.image.y;
+        }
       }
     });
 
     return {
       x: {
-        min: minX,
-        max: maxX,
+        min: minX - padding,
+        max: maxX + padding,
       },
       y: {
-        min: minY,
-        max: maxY,
+        min: minY - padding,
+        max: maxY + padding,
       },
     };
   }
