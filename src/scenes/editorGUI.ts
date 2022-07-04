@@ -14,6 +14,7 @@ import eventsCenter, { ECellType, EEvent } from "../events/eventCenter";
 import { Button } from "../objects/editor/tab/button";
 import editorState from "../context/editorState";
 import { saveData, updateFacingDirection } from "../context/saveData";
+import { MovementTab } from "../objects/editor/tab/movementTab";
 
 const TAB_HEIGHT = 80;
 
@@ -28,7 +29,12 @@ export default class EditorGUI extends GameScene {
     super(ESceneKey.EditorGUI);
 
     this.tabIndex = 0;
-    this.tabs = [new BodyTab(), new MouthTab(), new DefenseTab()];
+    this.tabs = [
+      new BodyTab(),
+      new MouthTab(),
+      new MovementTab(),
+      new DefenseTab(),
+    ];
     this.continueButton = new Button();
   }
 

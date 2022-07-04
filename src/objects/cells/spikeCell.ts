@@ -1,5 +1,11 @@
 import { Cell } from "./cell";
-import { EImageKey, MASS, RAD_3_OVER_2, SPACING } from "../../scenes/gameScene";
+import {
+  EImageKey,
+  MASS,
+  PHYSICS_DEFAULTS,
+  RAD_3_OVER_2,
+  SPACING,
+} from "../../scenes/gameScene";
 import { TSavedCell } from "../../context/saveData";
 import { Organism } from "../organism";
 import DegToRad = Phaser.Math.DegToRad;
@@ -11,7 +17,6 @@ export class SpikeCell extends Cell {
     super({
       offset,
       angleOffset,
-      color: 0xe3dfc3,
       mass: MASS,
       health: 5,
       imageKey: EImageKey.SpikeCell,
@@ -45,9 +50,9 @@ export class SpikeCell extends Cell {
       84,
       1,
       {
-        restitution: 0,
         mass: this.mass,
         angle: DegToRad(this.angleOffset),
+        ...PHYSICS_DEFAULTS,
         // isStatic: true,
       }
     );

@@ -26,8 +26,8 @@ export default class Ocean extends GameScene {
             y: 0,
           },
           debug: {
-            showJoint: false,
-            showBody: false,
+            // showJoint: false,
+            // showBody: false,
           },
         },
       },

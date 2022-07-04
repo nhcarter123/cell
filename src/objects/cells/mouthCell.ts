@@ -17,12 +17,12 @@ export class MouthCell extends Cell {
     super({
       offset,
       angleOffset,
-      color: 0xf2a041,
       mass: MASS,
       health: 8,
       imageKey: EImageKey.MouthCell,
       isBody: false,
       hasBackground: false,
+      mustPlacePerpendicular: true,
     });
 
     this.currentAttackCoolDown = 0;

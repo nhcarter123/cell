@@ -3,6 +3,7 @@ import { Organism } from "../organism";
 import { HealthBar } from "../healthbar";
 import {
   EImageKey,
+  PHYSICS_DEFAULTS,
   RAD_3_OVER_2,
   RADIUS,
   SPACING,
@@ -17,7 +18,7 @@ type TCellOverrides = Partial<
     | "health"
     | "offset"
     | "mass"
-    | "color"
+    | "depth"
     | "isBone"
     | "imageKey"
     | "isBody"
@@ -67,8 +68,8 @@ export class Cell {
   public readonly hasBackground: boolean;
   public readonly isBone: boolean;
   public readonly mustPlacePerpendicular: boolean;
+  public readonly depth: number;
   public readonly mass: number;
-  public readonly color: number;
   public readonly isBody: boolean;
   public readonly imageOffset: Vector;
   public readonly imageOffsetEditor: Vector;
@@ -86,9 +87,10 @@ export class Cell {
   public imageKey: EImageKey;
 
   constructor(overrides: TCellOverrides) {
+    this.depth = overrides.depth !== undefined ? overrides.depth : 0;
+    this.mass = overrides.mass !== undefined ? overrides.mass : 1;
     this.offset =
       overrides.offset !== undefined ? overrides.offset : { x: 0, y: 0 };
-    this.color = overrides.color !== undefined ? overrides.color : 0xffffff;
     this.occupiedSpots =
       overrides.occupiedSpots !== undefined
         ? overrides.occupiedSpots
@@ -100,7 +102,6 @@ export class Cell {
         : false;
     this.hasBackground =
       overrides.hasBackground !== undefined ? overrides.hasBackground : true;
-    this.mass = overrides.mass !== undefined ? overrides.mass : 1;
     this.isBone = overrides.isBone !== undefined ? overrides.isBone : false;
     this.imageOffset =
       overrides.imageOffset !== undefined
@@ -136,7 +137,7 @@ export class Cell {
 
     if (matter) {
       this.obj = this.createBody(matter, org);
-      matter.world.add(this.obj);
+      this.obj && matter.world.add(this.obj);
     }
 
     this.image = add.image(
@@ -145,6 +146,7 @@ export class Cell {
       this.imageKey
     );
     this.image.scale = 0.65;
+    this.image.depth = this.depth;
 
     if (matter) {
       this.image.setOrigin(this.imageOffset.x, this.imageOffset.y);
@@ -162,7 +164,7 @@ export class Cell {
   createBody(
     matter: Phaser.Physics.Matter.MatterPhysics,
     org: Organism
-  ): BodyType {
+  ): BodyType | undefined {
     // this.obj = matter.add.circle(
     //   org.avgPosition.x + this.offsetX * SPACING,
     //   org.avgPosition.y + this.offsetY * SPACING,
@@ -181,9 +183,8 @@ export class Cell {
       6,
       RADIUS,
       {
-        restitution: 0,
+        ...PHYSICS_DEFAULTS,
         mass: this.mass,
-        // isStatic: true,
         // angle: DegToRad(this.angleOffset + 90),
       }
     );
@@ -278,43 +279,45 @@ export class Cell {
     return compact([this.rightCell, this.downRightCell, this.downLeftCell]);
   }
 
-  getFirstNeighborCell(): ICellAndAngle | undefined {
-    if (this.upLeftCell) {
+  getFirstNeighborCell(
+    condition = (cell: Cell) => Boolean(cell)
+  ): ICellAndAngle | undefined {
+    if (this.upLeftCell && condition(this.upLeftCell)) {
       return {
         cell: this.upLeftCell,
         angle: 240,
       };
     }
 
-    if (this.upRightCell) {
+    if (this.upRightCell && condition(this.upRightCell)) {
       return {
         cell: this.upRightCell,
         angle: 300,
       };
     }
 
-    if (this.rightCell) {
+    if (this.rightCell && condition(this.rightCell)) {
       return {
         cell: this.rightCell,
         angle: 0,
       };
     }
 
-    if (this.downRightCell) {
+    if (this.downRightCell && condition(this.downRightCell)) {
       return {
         cell: this.downRightCell,
         angle: 60,
       };
     }
 
-    if (this.downLeftCell) {
+    if (this.downLeftCell && condition(this.downLeftCell)) {
       return {
         cell: this.downLeftCell,
         angle: 120,
       };
     }
 
-    if (this.leftCell) {
+    if (this.leftCell && condition(this.leftCell)) {
       return {
         cell: this.leftCell,
         angle: 180,
@@ -336,6 +339,14 @@ export class Cell {
           this.obj.parent === this.obj
             ? RadToDeg(this.obj.angle) + this.physicsAngleOffset
             : RadToDeg(this.obj.parent.angle) + this.angleOffset;
+      } else if (matter) {
+        const neighbor = this.getFirstNeighborCell((cell) => Boolean(cell.obj));
+        if (neighbor?.cell.obj) {
+          this.image.x = neighbor.cell.obj.position.x;
+          this.image.y = neighbor.cell.obj.position.y;
+          this.image.angle =
+            RadToDeg(neighbor.cell.obj.parent.angle) + this.angleOffset;
+        }
       } else {
         this.image.angle = this.angleOffset;
       }
@@ -375,83 +386,67 @@ export class Cell {
     this.healthBar?.destroy();
   }
 
+  checkPerpendicular(normalAngle: number): boolean {
+    if (!this.mustPlacePerpendicular) {
+      return true;
+    }
+
+    return this.angleOffset === normalAngle;
+  }
+
   setChildrenCells() {
     this.leftCell = this.organism?.cells.find(
       (c) =>
         floatEquals(this.offset.x - 1, c.offset.x) &&
         floatEquals(this.offset.y, c.offset.y) &&
-        c.health > 0
+        c.health > 0 &&
+        this.checkPerpendicular(90) &&
+        c.checkPerpendicular(270)
     );
-    if (
-      this.leftCell?.mustPlacePerpendicular &&
-      this.leftCell.angleOffset !== 270
-    ) {
-      this.leftCell = undefined;
-    }
 
     this.upLeftCell = this.organism?.cells.find(
       (c) =>
         floatEquals(this.offset.x - 0.5, c.offset.x) &&
         floatEquals(this.offset.y - RAD_3_OVER_2, c.offset.y) &&
-        c.health > 0
+        c.health > 0 &&
+        this.checkPerpendicular(150) &&
+        c.checkPerpendicular(330)
     );
-    if (
-      this.upLeftCell?.mustPlacePerpendicular &&
-      this.upLeftCell.angleOffset !== 330
-    ) {
-      this.upLeftCell = undefined;
-    }
 
     this.upRightCell = this.organism?.cells.find(
       (c) =>
         floatEquals(this.offset.x + 0.5, c.offset.x) &&
         floatEquals(this.offset.y - RAD_3_OVER_2, c.offset.y) &&
-        c.health > 0
+        c.health > 0 &&
+        this.checkPerpendicular(210) &&
+        c.checkPerpendicular(30)
     );
-    if (
-      this.upRightCell?.mustPlacePerpendicular &&
-      this.upRightCell.angleOffset !== 30
-    ) {
-      this.upRightCell = undefined;
-    }
 
     this.rightCell = this.organism?.cells.find(
       (c) =>
         floatEquals(this.offset.x + 1, c.offset.x) &&
         floatEquals(this.offset.y, c.offset.y) &&
-        c.health > 0
+        c.health > 0 &&
+        this.checkPerpendicular(270) &&
+        c.checkPerpendicular(90)
     );
-    if (
-      this.rightCell?.mustPlacePerpendicular &&
-      this.rightCell.angleOffset !== 90
-    ) {
-      this.rightCell = undefined;
-    }
 
     this.downRightCell = this.organism?.cells.find(
       (c) =>
         floatEquals(this.offset.x + 0.5, c.offset.x) &&
         floatEquals(this.offset.y + RAD_3_OVER_2, c.offset.y) &&
-        c.health > 0
+        c.health > 0 &&
+        this.checkPerpendicular(330) &&
+        c.checkPerpendicular(150)
     );
-    if (
-      this.downRightCell?.mustPlacePerpendicular &&
-      this.downRightCell.angleOffset !== 150
-    ) {
-      this.downRightCell = undefined;
-    }
 
     this.downLeftCell = this.organism?.cells.find(
       (c) =>
         floatEquals(this.offset.x - 0.5, c.offset.x) &&
         floatEquals(this.offset.y + RAD_3_OVER_2, c.offset.y) &&
-        c.health > 0
+        c.health > 0 &&
+        this.checkPerpendicular(30) &&
+        c.checkPerpendicular(210)
     );
-    if (
-      this.downLeftCell?.mustPlacePerpendicular &&
-      this.downLeftCell.angleOffset !== 210
-    ) {
-      this.downLeftCell = undefined;
-    }
   }
 }

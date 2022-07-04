@@ -1,3 +1,10 @@
+import { IBodyDefinition } from "matter";
+
+type TPhysicsDefaults = Pick<
+  IBodyDefinition,
+  "restitution" | "frictionStatic" | "frictionAir" | "isStatic"
+>;
+
 // globals
 export const RADIUS = 20;
 export const PADDING = 4;
@@ -6,10 +13,17 @@ export const STIFFNESS = 0.004;
 export const DAMPING = 0.1;
 export const MASS = 1;
 export const RAD_3_OVER_2 = Math.sqrt(3) / 2;
+export const PHYSICS_DEFAULTS: TPhysicsDefaults = {
+  restitution: 0,
+  frictionAir: 0.03,
+  frictionStatic: 0,
+  isStatic: false,
+};
 
 export enum EImageKey {
   Arrow = "Arrow",
   FatCell = "FatCell",
+  CiliaCell = "CiliaCell",
   BrainCell = "BrainCell",
   MouthCell = "MouthCell",
   SpikeCell = "SpikeCell",

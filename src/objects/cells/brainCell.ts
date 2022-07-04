@@ -7,11 +7,9 @@ export class BrainCell extends Cell {
     super({
       offset,
       angleOffset,
-      color: 0x544b57,
       mass: MASS,
       health: 5,
       imageKey: EImageKey.BrainCell,
-      isBody: true,
     });
   }
 }

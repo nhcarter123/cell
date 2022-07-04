@@ -6,6 +6,7 @@ export enum ECellType {
   BrainCell = "BrainCell",
   SpikeCell = "SpikeCell",
   BoneCell = "BoneCell",
+  CiliaCell = "CiliaCell",
 }
 
 export enum EEvent {

@@ -7,11 +7,9 @@ export class FatCell extends Cell {
     super({
       offset,
       angleOffset,
-      color: 0xe3dfc3,
       mass: MASS,
       health: 5,
       imageKey: EImageKey.FatCell,
-      isBody: true,
     });
   }
 }

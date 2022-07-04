@@ -7,7 +7,6 @@ export class BoneCell extends Cell {
     super({
       offset,
       angleOffset,
-      color: 0x544b57,
       mass: MASS,
       health: 10,
       imageKey: EImageKey.BoneCell,

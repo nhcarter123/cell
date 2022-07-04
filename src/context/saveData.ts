@@ -7,6 +7,7 @@ import { Organism } from "../objects/organism";
 import { SpikeCell } from "../objects/cells/spikeCell";
 import { BoneCell } from "../objects/cells/boneCell";
 import { getCenter } from "../helpers/math";
+import { CiliaCell } from "../objects/cells/ciliaCell";
 
 export type TSavedCell = Pick<Cell, "offset" | "angleOffset">;
 type TSavedOrganism = Pick<Organism, "isPlayer">;
@@ -89,6 +90,8 @@ export const createCellFromType = (
       return new SpikeCell(saveData);
     case ECellType.BoneCell:
       return new BoneCell(saveData);
+    case ECellType.CiliaCell:
+      return new CiliaCell(saveData);
   }
 };
 
@@ -107,6 +110,9 @@ const getTypeFromCell = (cell: Cell): ECellType => {
   }
   if (cell instanceof BoneCell) {
     return ECellType.BoneCell;
+  }
+  if (cell instanceof CiliaCell) {
+    return ECellType.CiliaCell;
   }
 
   return ECellType.FatCell;

@@ -14,7 +14,13 @@ import {
   rotateVector,
 } from "../helpers/math";
 import { compact } from "lodash";
-import { DAMPING, RADIUS, SPACING, STIFFNESS } from "../scenes/gameScene";
+import {
+  DAMPING,
+  PHYSICS_DEFAULTS,
+  RADIUS,
+  SPACING,
+  STIFFNESS,
+} from "../scenes/gameScene";
 import { Vector } from "matter";
 import Ocean from "../scenes/ocean";
 import RadToDeg = Phaser.Math.RadToDeg;
@@ -178,14 +184,17 @@ export class Organism {
       const boneCells = this.aggregateBone(cell);
 
       if (boneCells.length > 1) {
-        const parts = boneCells.map((c) => {
-          c.obj && matter.world.remove(c.obj);
-          c.obj = c.createBody(matter, this);
+        const parts = compact(
+          boneCells.map((c) => {
+            c.obj && matter.world.remove(c.obj);
+            c.obj = c.createBody(matter, this);
 
-          return c.obj;
-        });
+            return c.obj;
+          })
+        );
 
-        const compound = matter.body.create({ parts });
+        const compound = matter.body.create({ parts, ...PHYSICS_DEFAULTS });
+
         matter.world.add(compound);
       }
     }
@@ -473,7 +482,7 @@ export class Organism {
 
         const turnFactor = 0.0000008 * Math.min(distToTarget, 100);
         const moveFactor =
-          (0.0001 * (120 - Math.min(Math.abs(this.avgDiff), 120))) /
+          (0.00015 * (180 - Math.min(Math.abs(this.avgDiff), 80))) /
           (distToCenter + 40);
         // const turnFactor = 0.0001;
 
@@ -505,7 +514,11 @@ export class Organism {
               this.targetDir
             );
 
-            cell.obj.parent.torque -= 0.00002 * cell.obj.parent.mass * diff2;
+            cell.obj.parent.torque -=
+              0.00035 *
+              cell.obj.parent.mass *
+              Math.min(Math.abs(diff2), 40) *
+              Math.sign(diff2);
           }
         }
 
