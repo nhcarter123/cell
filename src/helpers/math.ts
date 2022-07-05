@@ -86,8 +86,8 @@ export const safeAngle = (angle: number): number => {
 
 export const getMaxDiff = (bounds: IBounds): number => {
   return Math.max(
-    Math.abs(bounds.x.min - bounds.x.max),
-    Math.abs(bounds.y.min - bounds.y.max)
+    Math.abs(bounds.x.max - bounds.x.min),
+    Math.abs(bounds.y.max - bounds.y.min)
   );
 };
 

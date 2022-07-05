@@ -1,7 +1,7 @@
-import { EImageKey } from "../../../scenes/gameScene";
-import { EDITOR_WIDTH } from "../../../index";
+import { EImageKey } from "../../../scenes/load";
 import { ShopContent } from "../shopContent/shopContent";
 import { Button } from "./button";
+import { EDITOR_WIDTH } from "../../../config";
 
 export const DEFAULT_TAB_COLOR =
   Phaser.Display.Color.ValueToColor("#727272").color;

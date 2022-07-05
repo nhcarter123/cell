@@ -1,4 +1,4 @@
-import { EImageKey } from "../../../scenes/gameScene";
+import { EImageKey } from "../../../scenes/load";
 import { ECellType } from "../../../events/eventCenter";
 
 export class ShopContent {

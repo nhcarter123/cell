@@ -1,16 +1,11 @@
 import { compact } from "lodash";
 import { Organism } from "../organism";
 import { HealthBar } from "../healthbar";
-import {
-  EImageKey,
-  PHYSICS_DEFAULTS,
-  RAD_3_OVER_2,
-  RADIUS,
-  SPACING,
-} from "../../scenes/gameScene";
 import { BodyType, Vector } from "matter";
 import { floatEquals } from "../../helpers/math";
 import RadToDeg = Phaser.Math.RadToDeg;
+import { EImageKey } from "../../scenes/load";
+import { PHYSICS_DEFAULTS, RAD_3_OVER_2, RADIUS, SPACING } from "../../config";
 
 type TCellOverrides = Partial<
   Pick<
@@ -166,8 +161,8 @@ export class Cell {
     org: Organism
   ): BodyType | undefined {
     // this.obj = matter.add.circle(
-    //   org.avgPosition.x + this.offsetX * SPACING,
-    //   org.avgPosition.y + this.offsetY * SPACING,
+    //   org.centerOfMass.x + this.offsetX * SPACING,
+    //   org.centerOfMass.y + this.offsetY * SPACING,
     //   RADIUS,
     //   {
     //     restitution: 0,
@@ -178,8 +173,8 @@ export class Cell {
     this.physicsAngleOffset = this.angleOffset;
 
     return matter.bodies.polygon(
-      org.avgPosition.x + this.offset.x * SPACING,
-      org.avgPosition.y + this.offset.y * SPACING,
+      org.centerOfMass.x + this.offset.x * SPACING,
+      org.centerOfMass.y + this.offset.y * SPACING,
       6,
       RADIUS,
       {

@@ -1,19 +1,25 @@
-import { pointDir, pointDist } from "../helpers/math";
+import { pointDir, pointDist, subtractVectors } from "../helpers/math";
 import { Organism } from "../objects/organism";
 import { Cell } from "../objects/cells/cell";
 import { compact } from "lodash";
-import GameScene from "./gameScene";
 import { ESceneKey } from "../index";
 import { loadOrganism, saveData } from "../context/saveData";
 import star from "../savedOrganisms/star";
+import { SCREEN_HEIGHT, SCREEN_WIDTH } from "../config";
+import OutlinePipelinePlugin from "phaser3-rex-plugins/plugins/outlinepipeline-plugin";
 
 interface IFindResult {
   closestCellDist: number;
   closestCell: Cell | undefined;
 }
 
-export default class Ocean extends GameScene {
+const BACKGROUND_DEPTH = 300;
+
+export default class Ocean extends Phaser.Scene {
   private organisms: Organism[];
+  private backgroundShader?: Phaser.GameObjects.Shader;
+  private leftButtonPressed: boolean;
+  private pipelineInstance?: OutlinePipelinePlugin;
 
   constructor() {
     super({
@@ -26,14 +32,15 @@ export default class Ocean extends GameScene {
             y: 0,
           },
           debug: {
-            // showJoint: false,
-            // showBody: false,
+            showJoint: false,
+            showBody: false,
           },
         },
       },
     });
 
     this.organisms = [];
+    this.leftButtonPressed = false;
   }
 
   create() {
@@ -49,13 +56,30 @@ export default class Ocean extends GameScene {
       }),
     ];
 
+    this.pipelineInstance = this.plugins.get(
+      "rexOutlinePipeline"
+    ) as OutlinePipelinePlugin;
+
+    this.backgroundShader = this.add.shader(
+      "ocean",
+      0,
+      0,
+      SCREEN_WIDTH,
+      SCREEN_HEIGHT
+    );
+    this.backgroundShader.scale = 2;
+    // back.x = -200;
+    this.backgroundShader.depth = -100;
+
     this.matter.add.rectangle(400, 200, 200, 150, {
       restitution: 0.9,
       isStatic: true,
     });
 
     // create cells
-    this.organisms.forEach((org) => org.create(this.add, this.matter, this));
+    this.organisms.forEach((org) =>
+      org.create(this.add, this.pipelineInstance, this.matter, this)
+    );
 
     // setup camera
     const player = this.organisms.find((org) => org.isPlayer);
@@ -71,6 +95,16 @@ export default class Ocean extends GameScene {
   update(time: number, delta: number) {
     super.update(time, delta);
 
+    if (this.backgroundShader) {
+      this.backgroundShader.setUniform("offset.value", [
+        this.cameras.main.scrollX / BACKGROUND_DEPTH,
+        -this.cameras.main.scrollY / BACKGROUND_DEPTH,
+      ]);
+      this.backgroundShader.x = this.cameras.main.scrollX + SCREEN_WIDTH / 2;
+      this.backgroundShader.y = this.cameras.main.scrollY + SCREEN_HEIGHT / 2;
+      this.backgroundShader.scale = 1 / this.cameras.main.zoom;
+    }
+
     // if (this.debugCircle) {
     //   this.debugCircle.x =
     //     this.input.mousePointer.x + this.cameras.main.scrollX;
@@ -80,10 +114,6 @@ export default class Ocean extends GameScene {
 
     const mouseX = this.input.mousePointer.x + this.cameras.main.scrollX;
     const mouseY = this.input.mousePointer.y + this.cameras.main.scrollY;
-
-    this.organisms.forEach((org) =>
-      org.update(this.input.mousePointer.leftButtonDown(), this.matter)
-    );
 
     if (this.input.mousePointer.leftButtonDown()) {
       if (!this.leftButtonPressed) {
@@ -105,8 +135,8 @@ export default class Ocean extends GameScene {
     this.organisms.forEach((org) => {
       if (this.input.mousePointer.leftButtonDown() && org.isPlayer) {
         org.targetDir = pointDir(
-          org.avgPosition.x,
-          org.avgPosition.y,
+          org.centerOfMass.x,
+          org.centerOfMass.y,
           mouseX,
           mouseY
         );
@@ -116,6 +146,21 @@ export default class Ocean extends GameScene {
 
       org.calcCenterOfMass();
       // org.simulateMovement(this.matter);
+
+      org.update(this.input.mousePointer.leftButtonDown(), this.matter);
+
+      if (org.isPlayer && org.brain?.obj) {
+        // console.log(org.centerOfMass.x);
+        // this.cameras.main.setFollowOffset(
+        //   org.centerOfMass.x,
+        //   org.centerOfMass.y
+        // );
+        const offset = subtractVectors(
+          org.brain.obj.position,
+          org.centerOfMass
+        );
+        this.cameras.main.setFollowOffset(offset.x / 4, offset.y / 4);
+      }
     });
   }
 

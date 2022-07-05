@@ -1,7 +1,8 @@
 import { Cell } from "./cell";
 import { lengthDirX, lengthDirY, pointDir } from "../../helpers/math";
-import { EImageKey, MASS, RADIUS } from "../../scenes/gameScene";
 import { TSavedCell } from "../../context/saveData";
+import { MASS, RADIUS } from "../../config";
+import { EImageKey } from "../../scenes/load";
 
 export class MouthCell extends Cell {
   private currentAttackCoolDown: number;

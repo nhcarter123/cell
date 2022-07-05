@@ -1,6 +1,5 @@
 import { Cell } from "../objects/cells/cell";
 import { ECellType } from "../events/eventCenter";
-import { SPACING } from "../scenes/gameScene";
 import { Vector } from "matter";
 import {
   addVectors,
@@ -8,16 +7,19 @@ import {
   rotateVector,
   safeAngle,
 } from "../helpers/math";
+import { SPACING } from "../config";
 
 class EditorState {
   public mouseCells: Cell[];
   public type: ECellType;
   public angle: number;
+  public fromShop: boolean;
 
   constructor() {
     this.type = ECellType.FatCell;
     this.mouseCells = [];
     this.angle = 0;
+    this.fromShop = false;
   }
 
   setMouseCellsPosition(x: number, y: number, alpha: number) {

@@ -1,6 +1,7 @@
 import { Cell } from "./cell";
-import { EImageKey, MASS } from "../../scenes/gameScene";
 import { TSavedCell } from "../../context/saveData";
+import { MASS } from "../../config";
+import { EImageKey } from "../../scenes/load";
 
 export class FatCell extends Cell {
   constructor({ offset, angleOffset }: Partial<TSavedCell>) {

@@ -14,17 +14,19 @@ import {
   rotateVector,
 } from "../helpers/math";
 import { compact } from "lodash";
+import { Vector } from "matter";
+import Ocean from "../scenes/ocean";
+import RadToDeg = Phaser.Math.RadToDeg;
+import { saveData } from "../context/saveData";
 import {
   DAMPING,
   PHYSICS_DEFAULTS,
   RADIUS,
   SPACING,
   STIFFNESS,
-} from "../scenes/gameScene";
-import { Vector } from "matter";
-import Ocean from "../scenes/ocean";
-import RadToDeg = Phaser.Math.RadToDeg;
-import { saveData } from "../context/saveData";
+} from "../config";
+import OutlinePipelinePlugin from "phaser3-rex-plugins/plugins/outlinepipeline-plugin";
+import { nanoid } from "nanoid";
 
 interface IBound {
   min: number;
@@ -41,42 +43,60 @@ export interface IAvailableSpot {
   availableOffsets: number[];
 }
 
-const MAX_SHADER_CELLS = 50;
-const SKIN_COLOR = Phaser.Display.Color.ValueToColor("#c8b086").color;
-const SKIN_RESOLUTION = 50;
+const MAX_SHADER_CELLS = 100;
+
+const SKIN_COLOR = Phaser.Display.Color.ValueToColor("#917342");
+const SKIN_OUTLINE_COLOR = Phaser.Display.Color.ValueToColor("#645741").color;
+const SKIN_THICKNESS = 4;
+const SKIN_RADIUS = 34;
+const SKIN_ALPHA = 0.4;
+
+const padding = RADIUS + 10;
 
 export class Organism {
+  private id: string;
   public isPlayer: boolean;
   public brain?: BrainCell;
   public cells: Cell[];
-  public avgPosition: MatterJS.Vector;
+  public centerOfMass: MatterJS.Vector;
   public ocean?: Ocean;
   private avgDiff: number;
   private vel: Vector;
   private angVel: number;
   public targetDir: number;
   private skinShader?: Phaser.GameObjects.Shader;
+  private skin?: Phaser.GameObjects.Image;
+  private debug?: Phaser.GameObjects.Graphics;
+  private skinResolution: number;
 
   constructor(isPlayer: boolean, x: number, y: number, cells: Cell[]) {
     this.isPlayer = isPlayer;
     this.cells = cells;
     this.brain = cells.find((cell) => cell instanceof BrainCell);
-    this.avgPosition = { x, y };
+    this.centerOfMass = { x, y };
     this.avgDiff = 0;
     this.vel = { x: 0, y: 0 };
     this.angVel = 0;
+    this.skinResolution = 0;
     this.targetDir = 0;
+    this.id = nanoid();
   }
 
   create(
     add: Phaser.GameObjects.GameObjectFactory,
+    pipeline?: OutlinePipelinePlugin,
     matter?: Phaser.Physics.Matter.MatterPhysics,
     ocean?: Ocean
   ) {
     this.ocean = ocean;
 
-    this.skinShader = add.shader("skin", 0, 0);
-    this.skinShader.depth = matter ? 10 : -10;
+    if (this.isPlayer) {
+      this.debug = add.graphics();
+      this.debug.depth = 100;
+    }
+
+    // this.skinShader.depth = matter ? 10 : -10;
+    // this.skinShader.depth = -10;
     // console.log(this.skinShader.uniforms.resolution);
     // .setRenderToTexture("skinTexture");
     // this.skinShader.setUniform("resolution.value", [100, 100]);
@@ -90,6 +110,26 @@ export class Organism {
     this.cells.forEach((cell) => cell.create(this, add, matter));
 
     this.syncCells(matter);
+
+    this.skinResolution = Math.min(getMaxDiff(this.getBounds(padding)), 500);
+
+    this.skinShader = add
+      .shader("skin", 0, 0, this.skinResolution, this.skinResolution)
+      .setRenderToTexture(`skin-${this.id}`);
+    this.skinShader.setUniform("color.value", [
+      SKIN_COLOR.red / 255,
+      SKIN_COLOR.green / 255,
+      SKIN_COLOR.blue / 255,
+    ]);
+    this.skinShader.setUniform("alpha.value", SKIN_ALPHA);
+    this.skin = add.image(0, 0, `skin-${this.id}`);
+    this.skin.depth = matter ? 10 : -10;
+
+    pipeline?.add(this.skin, {
+      // @ts-ignore the typing is just broken on this
+      thickness: SKIN_THICKNESS,
+      outlineColor: SKIN_OUTLINE_COLOR,
+    });
   }
 
   update(attacking: boolean, matter?: Phaser.Physics.Matter.MatterPhysics) {
@@ -97,12 +137,14 @@ export class Organism {
       cell.update(this.isPlayer ? attacking : true, matter)
     );
 
-    const padding = RADIUS + 10;
+    // const a = this.cells.sort((b, a) => (b.image?.x || 0) - (a.image?.x || 0));
+    // console.log(a[0]);
+
     const bounds = this.getBounds(padding);
     const center = getCenter(bounds);
     const scale = getMaxDiff(bounds);
-    const radius = 30 / scale;
-    // console.log(maxDiff);
+    const radius = SKIN_RADIUS / scale;
+    // console.log(center);
 
     const cellOffsets = [];
 
@@ -124,14 +166,14 @@ export class Organism {
       }
     }
 
-    if (this.skinShader) {
+    if (this.skinShader && this.skin) {
       this.skinShader.setUniform("cells.value", cellOffsets);
       this.skinShader.setUniform("radius.value", radius);
-      this.skinShader.x = center.x;
-      this.skinShader.y = center.y;
+      this.skin.x = center.x;
+      this.skin.y = center.y;
 
       // console.log(this.skinShader.uniforms);
-      this.skinShader.scale = scale / 128;
+      this.skin.scale = scale / this.skinResolution;
     }
 
     // const cellOffsets = matter
@@ -284,10 +326,10 @@ export class Organism {
   }
 
   getBounds(padding = 0): IBounds {
-    let minX = 0;
-    let maxX = 0;
-    let minY = 0;
-    let maxY = 0;
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
 
     this.cells.forEach((cell) => {
       if (cell.image) {
@@ -385,7 +427,7 @@ export class Organism {
     // }
     // console.log(totalMass);
 
-    this.avgPosition = {
+    this.centerOfMass = {
       x: xTotal / totalMass,
       y: yTotal / totalMass,
     };
@@ -413,8 +455,8 @@ export class Organism {
   //
   //     matter.composite.translate(this.composite, this.vel);
   //     matter.composite.rotate(this.composite, DegToRad(this.angVel), {
-  //       x: this.avgPosition.x,
-  //       y: this.avgPosition.y,
+  //       x: this.centerOfMass.x,
+  //       y: this.centerOfMass.y,
   //     });
   //   }
   // }
@@ -427,124 +469,193 @@ export class Organism {
     //   this.currentAngle -= angleDiff(this.currentAngle, targetDir) / 100;
     // }
     // if (this.brain?.obj) {
-    //   this.avgPosition = {
+    //   this.centerOfMass = {
     //     x: this.brain.obj.position.x,
     //     y: this.brain.obj.position.y,
     //   };
     // }
 
-    for (const cell of this.cells) {
-      if (cell.obj) {
-        const angleFromCenterToCell = pointDir(
-          this.avgPosition.x,
-          this.avgPosition.y,
-          cell.obj.position.x,
-          cell.obj.position.y
-        );
-        const distToCenter = pointDist(
-          this.avgPosition.x,
-          this.avgPosition.y,
-          cell.obj.position.x,
-          cell.obj.position.y
-        );
+    if (this.brain?.obj) {
+      if (this.debug) {
+        this.debug.clear();
+      }
 
-        // replace with vector rotation
-        const dist = pointDist(0, 0, cell.offset.x, cell.offset.y);
-        const dir = pointDir(0, 0, cell.offset.x, cell.offset.y);
+      const facingDir = RadToDeg(this.brain.obj.parent.angle);
+      const diffToTarget = angleDiff(facingDir, this.targetDir);
 
-        const targetPosX =
-          cell.obj.position.x +
-          lengthDirX(
-            dist * SPACING,
-            dir + this.targetDir - saveData.direction + 90
+      for (const cell of this.cells) {
+        if (cell.obj) {
+          const angleFromCenterToCell = pointDir(
+            this.centerOfMass.x,
+            this.centerOfMass.y,
+            cell.obj.position.x,
+            cell.obj.position.y
           );
-        const targetPosY =
-          cell.obj.position.y +
-          lengthDirY(
-            dist * SPACING,
-            dir + this.targetDir - saveData.direction + 90
+          const distToCenter = pointDist(
+            this.centerOfMass.x,
+            this.centerOfMass.y,
+            cell.obj.position.x,
+            cell.obj.position.y
+          );
+          const distToBrain = pointDist(
+            cell.offset.x,
+            cell.offset.y,
+            this.brain.offset.x,
+            this.brain.offset.y
           );
 
-        const angleFromCenterToTarget = pointDir(
-          this.avgPosition.x,
-          this.avgPosition.y,
-          targetPosX,
-          targetPosY
-        );
+          // replace with vector rotation
+          // const dist = pointDist(0, 0, cell.offset.x, cell.offset.y);
+          // const dir = pointDir(0, 0, cell.offset.x, cell.offset.y);
+          //
+          // const targetPosX =
+          //   cell.obj.position.x +
+          //   lengthDirX(
+          //     dist * SPACING,
+          //     dir + this.targetDir - saveData.direction + 90
+          //   );
+          // const targetPosY =
+          //   cell.obj.position.y +
+          //   lengthDirY(
+          //     dist * SPACING,
+          //     dir + this.targetDir - saveData.direction + 90
+          //   );
 
-        const diff = angleDiff(angleFromCenterToCell, angleFromCenterToTarget);
-        const distToTarget = pointDist(
-          cell.obj.position.x,
-          cell.obj.position.y,
-          targetPosX,
-          targetPosY
-        );
+          // const diff = angleDiff(angleFromCenterToCell, angleFromCenterToTarget);
+          // const distToTarget = pointDist(
+          //   cell.obj.position.x,
+          //   cell.obj.position.y,
+          //   targetPosX,
+          //   targetPosY
+          // );
 
-        const turnFactor = 0.0000008 * Math.min(distToTarget, 100);
-        const moveFactor =
-          (0.00015 * (180 - Math.min(Math.abs(this.avgDiff), 80))) /
-          (distToCenter + 40);
-        // const turnFactor = 0.0001;
+          // const diff = angleDiff(angleFromCenterToCell, this.targetDir + 180);
 
-        matter.applyForce(cell.obj.parent, {
-          x:
-            lengthDirX(
-              turnFactor,
-              angleFromCenterToCell - 90 * Math.sign(diff)
-            ) + lengthDirX(moveFactor, this.targetDir),
-          y:
-            lengthDirY(
-              turnFactor,
-              angleFromCenterToCell - 90 * Math.sign(diff)
-            ) + lengthDirY(moveFactor, this.targetDir),
-        });
+          const forcePos = {
+            x:
+              cell.obj.position.x +
+              lengthDirX(Math.max(distToCenter, 80), angleFromCenterToCell),
+            y:
+              cell.obj.position.y +
+              lengthDirY(Math.max(distToCenter, 80), angleFromCenterToCell),
+          };
 
-        // console.log(distToTarget);
-        // console.log(angleFromCenterToCell);
+          const intensity =
+            (-0.000001 *
+              Math.min(Math.pow(diffToTarget, 2), 2500) *
+              Math.sign(diffToTarget)) /
+            (distToBrain + 12);
 
-        // if (distToCenter < 10) {
-        // cell.obj.parent.torque -= 0.0001 * cell.obj.parent.mass * diff;
-        // }
+          const force = {
+            x: lengthDirX(intensity, angleFromCenterToCell + 90),
+            y: lengthDirY(intensity, angleFromCenterToCell + 90),
+          };
 
-        // rotate bones
-        if (cell.obj.parent !== cell.obj) {
-          if (cell.obj.parent.parts[1] === cell.obj) {
-            const diff2 = angleDiff(
-              RadToDeg(cell.obj.parent.angle),
-              this.targetDir
-            );
+          // const drawForce = {
+          //   x: lengthDirX(
+          //     -0.05 *
+          //       Math.min(Math.pow(diffToTarget, 2), 2500) *
+          //       Math.sign(diffToTarget),
+          //     angleFromCenterToCell + 90
+          //   ),
+          //   y: lengthDirY(
+          //     -0.05 *
+          //       Math.min(Math.pow(diffToTarget, 2), 2500) *
+          //       Math.sign(diffToTarget),
+          //     angleFromCenterToCell + 90
+          //   ),
+          // };
 
-            cell.obj.parent.torque -=
-              0.00035 *
-              cell.obj.parent.mass *
-              Math.min(Math.abs(diff2), 40) *
-              Math.sign(diff2);
-          }
+          // if (this.debug) {
+          //   this.debug.lineBetween(
+          //     forcePos.x,
+          //     forcePos.y,
+          //     forcePos.x + drawForce.x,
+          //     forcePos.y + drawForce.y
+          //   );
+          // }
+
+          matter.body.applyForce(cell.obj.parent, forcePos, force);
+          // matter.applyForce(cell.obj.parent, force);
+
+          // const turnFactor = 0.0000008 * Math.min(diff, 100);
+          const moveFactor =
+            (0.00000515 * (180 - Math.min(Math.abs(diffToTarget), 80))) /
+            (distToBrain + 3);
+
+          // const turnFactor = 0.0001;
+
+          // matter.applyForce(cell.obj.parent, {
+          //   x:
+          //     lengthDirX(
+          //       turnFactor,
+          //       angleFromCenterToCell - 90 * Math.sign(diff)
+          //     ) + lengthDirX(moveFactor, this.targetDir),
+          //   y:
+          //     lengthDirY(
+          //       turnFactor,
+          //       angleFromCenterToCell - 90 * Math.sign(diff)
+          //     ) + lengthDirY(moveFactor, this.targetDir),
+          // });
+
+          // console.log(distToTarget);
+          // console.log(angleFromCenterToCell);
+
+          // if (distToCenter < 10) {
+          // cell.obj.parent.torque -= 0.0001 * cell.obj.parent.mass * diff;
+          // }
+
+          // rotate bones
+          // if (cell.obj.parent !== cell.obj) {
+          //   if (cell.obj.parent.parts[1] === cell.obj) {
+          //     const diff2 = angleDiff(
+          //       RadToDeg(cell.obj.parent.angle),
+          //       this.targetDir
+          //     );
+          //
+          //     cell.obj.parent.torque -=
+          //       0.00035 *
+          //       cell.obj.parent.mass *
+          //       Math.min(Math.abs(diff2), 40) *
+          //       Math.sign(diff2);
+          //   }
+          // }
+
+          matter.applyForce(cell.obj.parent, {
+            x: lengthDirX(moveFactor, this.targetDir),
+            y: lengthDirY(moveFactor, this.targetDir),
+          });
+
+          // if (this.debug) {
+          //   this.debug.lineBetween(
+          //     cell.obj.position.x,
+          //     cell.obj.position.y,
+          //     cell.obj.position.x +
+          //       lengthDirX(moveFactor * 10000, this.targetDir),
+          //     cell.obj.position.y +
+          //       lengthDirY(moveFactor * 10000, this.targetDir)
+          //   );
+          // }
+
+          // cell.obj.torque = 0.005 * diff - cell.obj.angularVelocity;
+          // cell.obj.parent.torque +=
+          //   -(0.0001 * cell.obj.parent.mass) * diff -
+          //   cell.obj.parent.angularVelocity / 5;
+
+          // matter.applyForce(cell.obj, {
+          //   x: (targetPosX - cell.obj.position.x) / 2000000,
+          //   y: (targetPosY - cell.obj.position.y) / 2000000,
+          // });
+
+          // if (this.isPlayer) {
+          //   // console.log(this.targetDir);
+          //   console.log(moveFactor);
+          // }
+          // matter.applyForce(cell.obj, {
+          //   x: lengthDirX(moveFactor, this.targetDir),
+          //   y: lengthDirY(moveFactor, this.targetDir),
+          // });
         }
-
-        // matter.applyForce(cell.obj.parent, {
-        //   x: lengthDirX(moveFactor, this.targetDir),
-        //   y: lengthDirY(moveFactor, this.targetDir),
-        // });
-
-        // cell.obj.torque = 0.005 * diff - cell.obj.angularVelocity;
-        // cell.obj.parent.torque +=
-        //   -(0.0001 * cell.obj.parent.mass) * diff -
-        //   cell.obj.parent.angularVelocity / 5;
-
-        // matter.applyForce(cell.obj, {
-        //   x: (targetPosX - cell.obj.position.x) / 2000000,
-        //   y: (targetPosY - cell.obj.position.y) / 2000000,
-        // });
-
-        // if (this.isPlayer) {
-        //   // console.log(this.targetDir);
-        //   console.log(moveFactor);
-        // }
-        // matter.applyForce(cell.obj, {
-        //   x: lengthDirX(moveFactor, this.targetDir),
-        //   y: lengthDirY(moveFactor, this.targetDir),
-        // });
       }
     }
     // }

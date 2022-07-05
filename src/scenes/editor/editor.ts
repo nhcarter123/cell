@@ -1,6 +1,4 @@
-import GameScene, { EImageKey, RADIUS, SPACING } from "./gameScene";
-import { IAvailableSpot, Organism } from "../objects/organism";
-import { EDITOR_WIDTH, ESceneKey } from "../index";
+import { IAvailableSpot, Organism } from "../../objects/organism";
 import {
   angleDiff,
   getCenter,
@@ -8,27 +6,33 @@ import {
   lerp,
   pointDir,
   pointDist,
-} from "../helpers/math";
+} from "../../helpers/math";
 import { Vector } from "matter";
-import eventsCenter, { EEvent } from "../events/eventCenter";
-import { screenHeight, screenWidth } from "../config";
-import editorState from "../context/editorState";
+import eventsCenter, { EEvent } from "../../events/eventCenter";
+import {
+  EDITOR_WIDTH,
+  RADIUS,
+  SCREEN_HEIGHT,
+  SCREEN_WIDTH,
+  SPACING,
+} from "../../config";
+import editorState from "../../context/editorState";
 import {
   createCellFromType,
   loadOrganism,
   saveData,
   saveOrganism,
   saveDataToLocalStorage,
-} from "../context/saveData";
-import { Cell } from "../objects/cells/cell";
+} from "../../context/saveData";
+import { Cell } from "../../objects/cells/cell";
 import OutlinePipelinePlugin from "phaser3-rex-plugins/plugins/outlinepipeline-plugin";
 import { compact } from "lodash";
+import { ESceneKey } from "../../index";
 
-const originColor = Phaser.Display.Color.ValueToColor("#ffffff").color;
 const availableSpotColor = Phaser.Display.Color.ValueToColor("#dedede").color;
 const hoveredCellColor = Phaser.Display.Color.ValueToColor("#e0e0e0").color;
 
-export default class Editor extends GameScene {
+export default class Editor extends Phaser.Scene {
   private organism: Organism;
   private zoom: number;
   private targetZoom: number;
@@ -43,6 +47,7 @@ export default class Editor extends GameScene {
   private targetScrollY: number;
   private heldCellDuration: number;
   private pipelineInstance?: OutlinePipelinePlugin;
+  private leftButtonPressed: boolean;
 
   constructor() {
     super(ESceneKey.Editor);
@@ -61,11 +66,7 @@ export default class Editor extends GameScene {
     this.targetScrollY = 0;
     this.heldCellDuration = 0;
     this.highlightedCells = [];
-  }
-
-  preload() {
-    super.preload();
-    this.load.glsl("test", "assets/shaders/test.glsl.js");
+    this.leftButtonPressed = false;
   }
 
   create() {
@@ -73,7 +74,7 @@ export default class Editor extends GameScene {
       "rexOutlinePipeline"
     ) as OutlinePipelinePlugin;
 
-    this.organism.create(this.add);
+    this.organism.create(this.add, this.pipelineInstance);
 
     this.availableSpotGraphics = this.add.graphics();
     this.availableSpotGraphics.depth = 10;
@@ -83,8 +84,9 @@ export default class Editor extends GameScene {
     this.setCamera();
 
     eventsCenter.on(EEvent.BuyCell, () => {
+      editorState.fromShop = true;
       this.heldCellDuration = 0;
-      this.addBuyingCell({ x: 0, y: 0 });
+      this.addBuyingCell();
     });
     eventsCenter.on(EEvent.Continue, () => {
       saveData.organism = saveOrganism(this.organism);
@@ -123,11 +125,11 @@ export default class Editor extends GameScene {
   getMousePos(): Vector {
     return {
       x:
-        (this.input.mousePointer.x - (screenWidth + EDITOR_WIDTH) / 2) /
+        (this.input.mousePointer.x - (SCREEN_WIDTH + EDITOR_WIDTH) / 2) /
           this.zoom +
         this.scrollX,
       y:
-        (this.input.mousePointer.y - screenHeight / 2) / this.zoom +
+        (this.input.mousePointer.y - SCREEN_HEIGHT / 2) / this.zoom +
         this.scrollY,
     };
   }
@@ -144,8 +146,8 @@ export default class Editor extends GameScene {
 
     this.cameras.main.setZoom(this.zoom);
     this.cameras.main.setScroll(
-      -(screenWidth + EDITOR_WIDTH / this.zoom) / 2 + this.scrollX,
-      -screenHeight / 2 + this.scrollY
+      -(SCREEN_WIDTH + EDITOR_WIDTH / this.zoom) / 2 + this.scrollX,
+      -SCREEN_HEIGHT / 2 + this.scrollY
     );
 
     let clicked = false;
@@ -194,15 +196,16 @@ export default class Editor extends GameScene {
 
           if (clicked) {
             editorState.setMouseCellsOffset(hoveredSpot.pos);
-
             this.organism.addCells(editorState.mouseCells);
 
-            this.setCamera();
-            // this.addBuyingCell();
-            this.availableSpots = [];
-            this.drawAvailableSpots();
-            editorState.mouseCells = [];
-            editorState.angle = 0;
+            if (editorState.fromShop) {
+              this.addBuyingCell();
+            } else {
+              editorState.mouseCells = [];
+              this.availableSpots = [];
+              this.drawAvailableSpots();
+              this.setCamera();
+            }
           }
         } else {
           editorState.setMouseCellsPosition(mousePos.x, mousePos.y, 0.5);
@@ -228,6 +231,7 @@ export default class Editor extends GameScene {
       if (hoveredCell?.image && clicked) {
         this.organism.removeCells(this.highlightedCells);
         editorState.mouseCells = this.highlightedCells;
+        editorState.fromShop = false;
 
         editorState.setMouseCellsOffset({
           x: -hoveredCell.offset.x,
@@ -251,7 +255,7 @@ export default class Editor extends GameScene {
     const bounds = this.organism.getBounds();
     this.offset = getCenter(bounds);
 
-    this.targetZoom = 3 / Math.pow(1 + getMaxDiff(bounds) / 600, 1.3);
+    this.targetZoom = 4 / Math.pow(1 + getMaxDiff(bounds) / 600, 1.3);
     this.targetScrollX = this.offset.x;
     this.targetScrollY = this.offset.y;
   }
@@ -296,15 +300,16 @@ export default class Editor extends GameScene {
     }
   }
 
-  addBuyingCell(offset: Vector) {
-    const cell = createCellFromType(editorState.type, {
-      offset,
-    });
+  addBuyingCell() {
+    editorState.angle = 0;
+
+    const cell = createCellFromType(editorState.type, {});
     cell.create(this.organism, this.add);
     editorState.mouseCells = [cell];
 
     this.availableSpots = this.getAvailableSpots();
     this.drawAvailableSpots();
+    this.setCamera();
   }
 
   sellCell() {

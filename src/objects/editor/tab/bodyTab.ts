@@ -1,5 +1,5 @@
 import { Tab } from "./tab";
-import { EImageKey } from "../../../scenes/gameScene";
+import { EImageKey } from "../../../scenes/load";
 import { FatCellContent } from "../shopContent/fatCellContent";
 import { BrainCellContent } from "../shopContent/brainCellContent";
 import { BoneCellContent } from "../shopContent/boneCellContent";

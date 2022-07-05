@@ -1,24 +1,24 @@
-import GameScene, { EImageKey } from "./gameScene";
-import { screenHeight, screenWidth } from "../config";
-import { EDITOR_WIDTH, ESceneKey } from "../index";
 import {
   DEFAULT_TAB_COLOR,
   HOVERED_TAB_COLOR,
   SELECTED_TAB_COLOR,
   Tab,
-} from "../objects/editor/tab/tab";
-import { MouthTab } from "../objects/editor/tab/mouthTab";
-import { DefenseTab } from "../objects/editor/tab/defenseTab";
-import { BodyTab } from "../objects/editor/tab/bodyTab";
-import eventsCenter, { ECellType, EEvent } from "../events/eventCenter";
-import { Button } from "../objects/editor/tab/button";
-import editorState from "../context/editorState";
-import { saveData, updateFacingDirection } from "../context/saveData";
-import { MovementTab } from "../objects/editor/tab/movementTab";
+} from "../../objects/editor/tab/tab";
+import { MouthTab } from "../../objects/editor/tab/mouthTab";
+import { DefenseTab } from "../../objects/editor/tab/defenseTab";
+import { BodyTab } from "../../objects/editor/tab/bodyTab";
+import eventsCenter, { ECellType, EEvent } from "../../events/eventCenter";
+import { Button } from "../../objects/editor/tab/button";
+import editorState from "../../context/editorState";
+import { saveData, updateFacingDirection } from "../../context/saveData";
+import { MovementTab } from "../../objects/editor/tab/movementTab";
+import { EImageKey } from "../load";
+import { ESceneKey } from "../../index";
+import { EDITOR_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH } from "../../config";
 
 const TAB_HEIGHT = 80;
 
-export default class EditorGUI extends GameScene {
+export default class EditorGUI extends Phaser.Scene {
   private panel?: Phaser.GameObjects.Rectangle;
   private tabIndex: number;
   private continueButton: Button;
@@ -43,7 +43,7 @@ export default class EditorGUI extends GameScene {
     const continueButtonHeight = 60;
 
     this.arrow = this.add
-      .image(screenWidth - 75, 80, EImageKey.Arrow)
+      .image(SCREEN_WIDTH - 75, 80, EImageKey.Arrow)
       .setInteractive()
       .on("pointerdown", updateFacingDirection);
 
@@ -51,8 +51,8 @@ export default class EditorGUI extends GameScene {
 
     this.continueButton.create(
       this.add,
-      screenWidth - continueButtonWidth / 2,
-      screenHeight - continueButtonHeight / 2,
+      SCREEN_WIDTH - continueButtonWidth / 2,
+      SCREEN_HEIGHT - continueButtonHeight / 2,
       continueButtonWidth,
       continueButtonHeight,
       () => eventsCenter.emit(EEvent.Continue)
@@ -60,9 +60,9 @@ export default class EditorGUI extends GameScene {
 
     this.panel = this.add.rectangle(
       EDITOR_WIDTH / 2,
-      screenHeight / 2,
+      SCREEN_HEIGHT / 2,
       EDITOR_WIDTH,
-      screenHeight,
+      SCREEN_HEIGHT,
       Phaser.Display.Color.ValueToColor("#484848").color
     );
     this.panel.alpha = 0.75;

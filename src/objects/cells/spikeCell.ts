@@ -1,16 +1,11 @@
 import { Cell } from "./cell";
-import {
-  EImageKey,
-  MASS,
-  PHYSICS_DEFAULTS,
-  RAD_3_OVER_2,
-  SPACING,
-} from "../../scenes/gameScene";
 import { TSavedCell } from "../../context/saveData";
 import { Organism } from "../organism";
 import DegToRad = Phaser.Math.DegToRad;
 import { rotateVector } from "../../helpers/math";
 import { BodyType } from "matter";
+import { MASS, PHYSICS_DEFAULTS, RAD_3_OVER_2, SPACING } from "../../config";
+import { EImageKey } from "../../scenes/load";
 
 export class SpikeCell extends Cell {
   constructor({ offset, angleOffset }: Partial<TSavedCell>) {
@@ -44,8 +39,8 @@ export class SpikeCell extends Cell {
     );
 
     return matter.bodies.trapezoid(
-      org.avgPosition.x + (this.offset.x + offset.x) * SPACING,
-      org.avgPosition.y + (this.offset.y + offset.y) * SPACING,
+      org.centerOfMass.x + (this.offset.x + offset.x) * SPACING,
+      org.centerOfMass.y + (this.offset.y + offset.y) * SPACING,
       24,
       84,
       1,

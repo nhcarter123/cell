@@ -1,5 +1,5 @@
 import { Cell } from "./cell";
-import { EImageKey } from "../../scenes/gameScene";
+import { EImageKey } from "../../scenes/load";
 import { TSavedCell } from "../../context/saveData";
 import { Organism } from "../organism";
 

@@ -1,16 +1,17 @@
 import Phaser from "phaser";
-import Editor from "./scenes/editor";
-import EditorGUI from "./scenes/editorGUI";
 import config from "./config";
 import Ocean from "./scenes/ocean";
-
-// globals
-export const EDITOR_WIDTH = 400;
+import Load from "./scenes/load";
+import EditorGUI from "./scenes/editor/editorGUI";
+import Editor from "./scenes/editor/editor";
+import EditorBackground from "./scenes/editor/editorBackground";
 
 export enum ESceneKey {
   Ocean = "Ocean",
   Editor = "Editor",
   EditorGUI = "EditorGUI",
+  EditorBackground = "EditorBackground",
+  Load = "Load",
 }
 
 const loadFont = (name: string) => {
@@ -23,10 +24,8 @@ const loadFont = (name: string) => {
 loadFont("concert_one");
 loadFont("bangers");
 
-const game = new Phaser.Game(
+new Phaser.Game(
   Object.assign(config, {
-    scene: [EditorGUI, Editor, Ocean],
+    scene: [Load, EditorBackground, EditorGUI, Editor, Ocean],
   })
 );
-
-game.scene.start(ESceneKey.Editor);
