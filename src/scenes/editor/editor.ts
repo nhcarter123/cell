@@ -214,12 +214,12 @@ export default class Editor extends Phaser.Scene {
     } else {
       if (hoveredCell !== this.hoveredCell) {
         if (hoveredCell) {
-          this.organism.setConnected(hoveredCell);
+          this.organism.setisConnected(hoveredCell);
 
           this.highlightCells(
             compact(
               this.organism.cells
-                .filter((cell) => !cell.connected)
+                .filter((cell) => !cell.isConnected)
                 .sort((a) => (a === hoveredCell ? -1 : 1))
             )
           );

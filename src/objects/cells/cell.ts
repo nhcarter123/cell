@@ -77,7 +77,7 @@ export class Cell {
   public showHealthBar: number;
   public occupiedSpots: Vector[];
 
-  public connected: boolean;
+  public isConnected: boolean;
   public beenScanned: boolean;
   public imageKey: EImageKey;
 
@@ -117,7 +117,7 @@ export class Cell {
     this.showHealthBar = 0;
     this.physicsAngleOffset = 0;
 
-    this.connected = false;
+    this.isConnected = false;
     this.beenScanned = false;
 
     this.links = [];
@@ -132,7 +132,11 @@ export class Cell {
 
     if (matter) {
       this.obj = this.createBody(matter, org);
-      this.obj && matter.world.add(this.obj);
+      if (this.obj) {
+        // @ts-ignore
+        this.obj.cell = this;
+        matter.world.add(this.obj);
+      }
     }
 
     this.image = add.image(
@@ -274,45 +278,43 @@ export class Cell {
     return compact([this.rightCell, this.downRightCell, this.downLeftCell]);
   }
 
-  getFirstNeighborCell(
-    condition = (cell: Cell) => Boolean(cell)
-  ): ICellAndAngle | undefined {
-    if (this.upLeftCell && condition(this.upLeftCell)) {
+  getFirstNeighborCell(): ICellAndAngle | undefined {
+    if (this.upLeftCell?.obj) {
       return {
         cell: this.upLeftCell,
         angle: 240,
       };
     }
 
-    if (this.upRightCell && condition(this.upRightCell)) {
+    if (this.upRightCell && this.upRightCell?.obj) {
       return {
         cell: this.upRightCell,
         angle: 300,
       };
     }
 
-    if (this.rightCell && condition(this.rightCell)) {
+    if (this.rightCell && this.rightCell?.obj) {
       return {
         cell: this.rightCell,
         angle: 0,
       };
     }
 
-    if (this.downRightCell && condition(this.downRightCell)) {
+    if (this.downRightCell && this.downRightCell?.obj) {
       return {
         cell: this.downRightCell,
         angle: 60,
       };
     }
 
-    if (this.downLeftCell && condition(this.downLeftCell)) {
+    if (this.downLeftCell && this.downLeftCell?.obj) {
       return {
         cell: this.downLeftCell,
         angle: 120,
       };
     }
 
-    if (this.leftCell && condition(this.leftCell)) {
+    if (this.leftCell && this.leftCell?.obj) {
       return {
         cell: this.leftCell,
         angle: 180,
@@ -321,7 +323,7 @@ export class Cell {
   }
 
   update(attacking: boolean, matter?: Phaser.Physics.Matter.MatterPhysics) {
-    if (!this.connected && matter) {
+    if (!this.isConnected && matter) {
       this.health -= 0.0025;
     }
 
@@ -335,7 +337,7 @@ export class Cell {
             ? RadToDeg(this.obj.angle) + this.physicsAngleOffset
             : RadToDeg(this.obj.parent.angle) + this.angleOffset;
       } else if (matter) {
-        const neighbor = this.getFirstNeighborCell((cell) => Boolean(cell.obj));
+        const neighbor = this.getFirstNeighborCell();
         if (neighbor?.cell.obj) {
           this.image.x = neighbor.cell.obj.position.x;
           this.image.y = neighbor.cell.obj.position.y;
@@ -375,6 +377,12 @@ export class Cell {
 
   destroy(matter?: Phaser.Physics.Matter.MatterPhysics) {
     if (matter && this.obj) {
+      if (this.obj.parent !== this.obj) {
+        this.obj.parent.parts = this.obj.parent.parts.filter(
+          (part) => part !== this.obj
+        );
+      }
+
       matter.world.remove(this.obj);
     }
     this.image?.destroy();

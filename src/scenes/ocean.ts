@@ -33,7 +33,7 @@ export default class Ocean extends Phaser.Scene {
           },
           debug: {
             showJoint: false,
-            showBody: false,
+            // showBody: false,
           },
         },
       },

@@ -39,7 +39,7 @@ export class MouthCell extends Cell {
   update(attacking: boolean, matter?: Phaser.Physics.Matter.MatterPhysics) {
     super.update(attacking, matter);
 
-    if (this.connected) {
+    if (this.isConnected) {
       if (this.currentAttackCoolDown === 0) {
         if (this.obj && attacking) {
           const findResult = this.organism?.ocean?.findClosestCell(

@@ -6,8 +6,13 @@ import { rotateVector } from "../../helpers/math";
 import { BodyType } from "matter";
 import { MASS, PHYSICS_DEFAULTS, RAD_3_OVER_2, SPACING } from "../../config";
 import { EImageKey } from "../../scenes/load";
+import MatterCollisionData = Phaser.Types.Physics.Matter.MatterCollisionData;
 
 export class SpikeCell extends Cell {
+  private currentAttackCooldown: number;
+  private attackCoolDown: number;
+  private damage: number;
+
   constructor({ offset, angleOffset }: Partial<TSavedCell>) {
     super({
       offset,
@@ -26,6 +31,16 @@ export class SpikeCell extends Cell {
         { x: 0.5, y: -RAD_3_OVER_2 },
       ],
     });
+
+    this.currentAttackCooldown = 0;
+    this.attackCoolDown = 60;
+    this.damage = 1;
+  }
+
+  update(attacking: boolean, matter?: Phaser.Physics.Matter.MatterPhysics) {
+    super.update(attacking, matter);
+
+    this.currentAttackCooldown -= 1;
   }
 
   createBody(
@@ -48,7 +63,20 @@ export class SpikeCell extends Cell {
         mass: this.mass,
         angle: DegToRad(this.angleOffset),
         ...PHYSICS_DEFAULTS,
-        // isStatic: true,
+        onCollideCallback: ({ bodyB }: MatterCollisionData) => {
+          if (
+            this.currentAttackCooldown < 0 &&
+            // @ts-ignore
+            bodyB.cell &&
+            // @ts-ignore
+            bodyB.cell.organism?.isPlayer !== this.organism?.isPlayer
+          ) {
+            this.currentAttackCooldown = this.attackCoolDown;
+
+            // @ts-ignore
+            bodyB.cell.health -= this.damage;
+          }
+        },
       }
     );
   }

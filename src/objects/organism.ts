@@ -230,6 +230,8 @@ export class Organism {
           boneCells.map((c) => {
             c.obj && matter.world.remove(c.obj);
             c.obj = c.createBody(matter, this);
+            // @ts-ignore
+            c.obj.cell = c;
 
             return c.obj;
           })
@@ -368,7 +370,7 @@ export class Organism {
     let totalCells = 0;
 
     for (const cell of this.cells) {
-      if (cell.obj) {
+      if (cell.obj && cell.isConnected) {
         // console.log(cell.obj.position.x);
         xTotal += cell.obj.position.x * cell.obj.mass;
         yTotal += cell.obj.position.y * cell.obj.mass;
@@ -484,7 +486,7 @@ export class Organism {
       const diffToTarget = angleDiff(facingDir, this.targetDir);
 
       for (const cell of this.cells) {
-        if (cell.obj) {
+        if (cell.obj && cell.isConnected) {
           const angleFromCenterToCell = pointDir(
             this.centerOfMass.x,
             this.centerOfMass.y,
@@ -684,13 +686,13 @@ export class Organism {
     return boneCells;
   }
 
-  setConnected(cellToRemove?: Cell) {
+  setisConnected(cellToRemove?: Cell) {
     const cellsToCheck = compact([
       (this.brain?.health || 0) > 0 ? this.brain : undefined,
     ]);
 
     this.cells.forEach((cell) => {
-      cell.connected = false;
+      cell.isConnected = false;
       cell.beenScanned = false;
     });
 
@@ -701,7 +703,7 @@ export class Organism {
         cell.beenScanned = true;
 
         if (cell !== cellToRemove) {
-          cell.connected = true;
+          cell.isConnected = true;
           cellsToCheck.push(...cell.getSurroundingCells());
         }
       }
@@ -726,7 +728,7 @@ export class Organism {
 
     this.cells.forEach((cell) => cell.setChildrenCells());
 
-    this.setConnected();
+    this.setisConnected();
   }
 
   overlapsWith(
