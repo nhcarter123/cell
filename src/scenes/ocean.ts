@@ -5,7 +5,7 @@ import { compact } from "lodash";
 import { ESceneKey } from "../index";
 import { loadOrganism, saveData } from "../context/saveData";
 import star from "../savedOrganisms/star";
-import { SCREEN_HEIGHT, SCREEN_WIDTH } from "../config";
+import config from "../config";
 import OutlinePipelinePlugin from "phaser3-rex-plugins/plugins/outlinepipeline-plugin";
 
 interface IFindResult {
@@ -64,8 +64,8 @@ export default class Ocean extends Phaser.Scene {
       "ocean",
       0,
       0,
-      SCREEN_WIDTH,
-      SCREEN_HEIGHT
+      config.screenWidth,
+      config.screenHeight
     );
     this.backgroundShader.scale = 2;
     // back.x = -200;
@@ -100,8 +100,10 @@ export default class Ocean extends Phaser.Scene {
         this.cameras.main.scrollX / BACKGROUND_DEPTH,
         -this.cameras.main.scrollY / BACKGROUND_DEPTH,
       ]);
-      this.backgroundShader.x = this.cameras.main.scrollX + SCREEN_WIDTH / 2;
-      this.backgroundShader.y = this.cameras.main.scrollY + SCREEN_HEIGHT / 2;
+      this.backgroundShader.x =
+        this.cameras.main.scrollX + config.screenWidth / 2;
+      this.backgroundShader.y =
+        this.cameras.main.scrollY + config.screenHeight / 2;
       this.backgroundShader.scale = 1 / this.cameras.main.zoom;
     }
 

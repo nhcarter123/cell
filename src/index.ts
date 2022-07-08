@@ -24,8 +24,12 @@ const loadFont = (name: string) => {
 loadFont("concert_one");
 loadFont("bangers");
 
-new Phaser.Game(
-  Object.assign(config, {
-    scene: [Load, EditorBackground, EditorGUI, Editor, Ocean],
-  })
-);
+const game = new Phaser.Game({
+  ...config.getGameConfig(),
+  scene: [Load, EditorBackground, EditorGUI, Editor, Ocean],
+});
+
+config.resize(game);
+
+window.addEventListener("load", () => config.resize(game));
+window.addEventListener("resize", () => config.resize(game));

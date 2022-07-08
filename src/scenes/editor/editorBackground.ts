@@ -1,5 +1,5 @@
 import { ESceneKey } from "../../index";
-import { SCREEN_HEIGHT, SCREEN_WIDTH } from "../../config";
+import config from "../../config";
 
 export default class EditorBackground extends Phaser.Scene {
   private backgroundShader?: Phaser.GameObjects.Shader;
@@ -11,13 +11,20 @@ export default class EditorBackground extends Phaser.Scene {
   create() {
     this.backgroundShader = this.add.shader(
       "ocean",
-      0,
-      0,
-      SCREEN_WIDTH,
-      SCREEN_HEIGHT
+      config.startingScreenWidth / 2,
+      config.startingScreenHeight / 2,
+      config.screenWidth,
+      config.screenHeight
     );
-    this.backgroundShader.scale = 2;
-    // back.x = -200;
     this.backgroundShader.depth = -100;
+  }
+
+  update(time: number, delta: number) {
+    super.update(time, delta);
+
+    if (this.backgroundShader) {
+      this.backgroundShader.width = config.screenWidth;
+      this.backgroundShader.height = config.screenHeight;
+    }
   }
 }

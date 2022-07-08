@@ -9,13 +9,7 @@ import {
 } from "../../helpers/math";
 import { Vector } from "matter";
 import eventsCenter, { EEvent } from "../../events/eventCenter";
-import {
-  EDITOR_WIDTH,
-  RADIUS,
-  SCREEN_HEIGHT,
-  SCREEN_WIDTH,
-  SPACING,
-} from "../../config";
+import config, { RADIUS, SPACING } from "../../config";
 import editorState from "../../context/editorState";
 import {
   createCellFromType,
@@ -125,11 +119,12 @@ export default class Editor extends Phaser.Scene {
   getMousePos(): Vector {
     return {
       x:
-        (this.input.mousePointer.x - (SCREEN_WIDTH + EDITOR_WIDTH) / 2) /
+        (this.input.mousePointer.x -
+          (config.screenWidth + config.editorWidth) / 2) /
           this.zoom +
         this.scrollX,
       y:
-        (this.input.mousePointer.y - SCREEN_HEIGHT / 2) / this.zoom +
+        (this.input.mousePointer.y - config.screenHeight / 2) / this.zoom +
         this.scrollY,
     };
   }
@@ -146,8 +141,8 @@ export default class Editor extends Phaser.Scene {
 
     this.cameras.main.setZoom(this.zoom);
     this.cameras.main.setScroll(
-      -(SCREEN_WIDTH + EDITOR_WIDTH / this.zoom) / 2 + this.scrollX,
-      -SCREEN_HEIGHT / 2 + this.scrollY
+      -(config.screenWidth + config.editorWidth / this.zoom) / 2 + this.scrollX,
+      -config.screenHeight / 2 + this.scrollY
     );
 
     let clicked = false;
@@ -163,7 +158,7 @@ export default class Editor extends Phaser.Scene {
 
     if (editorState.mouseCells.length) {
       this.heldCellDuration += 1;
-      const inEditor = this.input.mousePointer.x < EDITOR_WIDTH;
+      const inEditor = this.input.mousePointer.x < config.editorWidth;
 
       if (clicked && inEditor && this.heldCellDuration > 60) {
         this.sellCell();

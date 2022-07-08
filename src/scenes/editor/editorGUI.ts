@@ -14,7 +14,7 @@ import { saveData, updateFacingDirection } from "../../context/saveData";
 import { MovementTab } from "../../objects/editor/tab/movementTab";
 import { EImageKey } from "../load";
 import { ESceneKey } from "../../index";
-import { EDITOR_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH } from "../../config";
+import config from "../../config";
 
 const TAB_HEIGHT = 80;
 
@@ -43,7 +43,7 @@ export default class EditorGUI extends Phaser.Scene {
     const continueButtonHeight = 60;
 
     this.arrow = this.add
-      .image(SCREEN_WIDTH - 75, 80, EImageKey.Arrow)
+      .image(config.screenWidth - 75, 80, EImageKey.Arrow)
       .setInteractive()
       .on("pointerdown", updateFacingDirection);
 
@@ -51,24 +51,24 @@ export default class EditorGUI extends Phaser.Scene {
 
     this.continueButton.create(
       this.add,
-      SCREEN_WIDTH - continueButtonWidth / 2,
-      SCREEN_HEIGHT - continueButtonHeight / 2,
+      config.screenWidth - continueButtonWidth / 2,
+      config.screenHeight - continueButtonHeight / 2,
       continueButtonWidth,
       continueButtonHeight,
       () => eventsCenter.emit(EEvent.Continue)
     );
 
     this.panel = this.add.rectangle(
-      EDITOR_WIDTH / 2,
-      SCREEN_HEIGHT / 2,
-      EDITOR_WIDTH,
-      SCREEN_HEIGHT,
+      config.editorWidth / 2,
+      config.screenHeight / 2,
+      config.editorWidth,
+      config.screenHeight,
       Phaser.Display.Color.ValueToColor("#484848").color
     );
     this.panel.alpha = 0.75;
 
     this.tabs.forEach((tab, index) => {
-      const tabWidth = EDITOR_WIDTH / this.tabs.length;
+      const tabWidth = config.editorWidth / this.tabs.length;
 
       const onHover = () => {
         if (index !== this.tabIndex) {
@@ -105,6 +105,11 @@ export default class EditorGUI extends Phaser.Scene {
     if (this.arrow) {
       this.arrow.angle = saveData.direction;
     }
+
+    if (this.panel) {
+      this.panel.width = config.editorWidth;
+    }
+
     // const currentTab = this.tabs.find((tab) => tab.id === this.currentTab);
     // if (currentTab) {
     //   currentTab.background.fillColor = hoveredTabColor;
