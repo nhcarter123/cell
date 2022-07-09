@@ -54,15 +54,15 @@ const SKIN_ALPHA = 0.4;
 const padding = RADIUS + 10;
 
 export class Organism {
-  private id: string;
+  public id: string;
   public isPlayer: boolean;
   public brain?: BrainCell;
   public cells: Cell[];
   public centerOfMass: MatterJS.Vector;
   public ocean?: Ocean;
   private avgDiff: number;
-  private vel: Vector;
-  private angVel: number;
+  // private vel: Vector;
+  // private angVel: number;
   public targetDir: number;
   private skinShader?: Phaser.GameObjects.Shader;
   private skin?: Phaser.GameObjects.Image;
@@ -75,8 +75,8 @@ export class Organism {
     this.brain = cells.find((cell) => cell instanceof BrainCell);
     this.centerOfMass = { x, y };
     this.avgDiff = 0;
-    this.vel = { x: 0, y: 0 };
-    this.angVel = 0;
+    // this.vel = { x: 0, y: 0 };
+    // this.angVel = 0;
     this.skinResolution = 0;
     this.targetDir = 0;
     this.id = nanoid();
@@ -582,7 +582,7 @@ export class Organism {
 
           // const turnFactor = 0.0000008 * Math.min(diff, 100);
           const moveFactor =
-            (0.00000515 * (180 - Math.min(Math.abs(diffToTarget), 80))) /
+            (0.00000405 * (180 - Math.min(Math.abs(diffToTarget), 80))) /
             (distToBrain + 3);
 
           // const turnFactor = 0.0001;
@@ -855,5 +855,12 @@ export class Organism {
   removeCells(cells: Cell[]) {
     this.cells = this.cells.filter((c) => !cells.includes(c));
     this.syncCells();
+  }
+
+  destroy(matter?: Phaser.Physics.Matter.MatterPhysics) {
+    this.skinShader?.destroy();
+    this.skin?.destroy();
+    this.cells.forEach((cell) => cell.destroy(matter));
+    this.cells = [];
   }
 }

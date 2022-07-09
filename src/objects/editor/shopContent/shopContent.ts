@@ -1,10 +1,11 @@
 import { EImageKey } from "../../../scenes/load";
 import { ECellType } from "../../../events/eventCenter";
+import config from "../../../config";
 
 export class ShopContent {
   private readonly tier: number;
   private readonly cost: number;
-  private obj?: Phaser.GameObjects.Image;
+  public obj?: Phaser.GameObjects.Image;
   private readonly imageKey: EImageKey;
   private readonly type: ECellType;
   public scale: number;
@@ -32,7 +33,7 @@ export class ShopContent {
       .image(x, y, this.imageKey)
       .on("pointerdown", () => onBuy(this.cost, this.type));
 
-    this.obj.scale = this.scale;
+    this.obj.scale = this.scale / config.resolutionScale;
 
     this.setVisible(false);
   }

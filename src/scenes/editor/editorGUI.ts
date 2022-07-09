@@ -17,6 +17,8 @@ import { ESceneKey } from "../../index";
 import config from "../../config";
 
 const TAB_HEIGHT = 80;
+const CONTINUE_BUTTON_WIDTH = 200;
+const CONTINUE_BUTTON_HEIGHT = 60;
 
 export default class EditorGUI extends Phaser.Scene {
   private panel?: Phaser.GameObjects.Rectangle;
@@ -39,22 +41,24 @@ export default class EditorGUI extends Phaser.Scene {
   }
 
   create() {
-    const continueButtonWidth = 140;
-    const continueButtonHeight = 60;
-
     this.arrow = this.add
-      .image(config.screenWidth - 75, 80, EImageKey.Arrow)
+      .image(
+        config.screenWidth - 75 / config.resolutionScale,
+        80 / config.resolutionScale,
+        EImageKey.Arrow
+      )
       .setInteractive()
-      .on("pointerdown", updateFacingDirection);
+      // .on("pointerdown", updateFacingDirection)
+      .on("pointerup", () => this.game.scale.startFullscreen());
 
-    this.arrow.scale = 0.15;
+    this.arrow.scale = 0.15 / config.resolutionScale;
 
     this.continueButton.create(
       this.add,
-      config.screenWidth - continueButtonWidth / 2,
-      config.screenHeight - continueButtonHeight / 2,
-      continueButtonWidth,
-      continueButtonHeight,
+      0,
+      0,
+      CONTINUE_BUTTON_WIDTH,
+      CONTINUE_BUTTON_HEIGHT,
       () => eventsCenter.emit(EEvent.Continue)
     );
 
@@ -85,9 +89,9 @@ export default class EditorGUI extends Phaser.Scene {
       tab.create(
         this.add,
         index * tabWidth + tabWidth / 2,
-        TAB_HEIGHT / 2,
+        TAB_HEIGHT / config.resolutionScale / 2,
         tabWidth,
-        TAB_HEIGHT,
+        TAB_HEIGHT / config.resolutionScale,
         () => this.selectTab(index),
         onHover,
         onExitHover,
@@ -104,11 +108,45 @@ export default class EditorGUI extends Phaser.Scene {
 
     if (this.arrow) {
       this.arrow.angle = saveData.direction;
+      this.arrow.x = config.screenWidth - 75 / config.resolutionScale;
+      this.arrow.y = 80 / config.resolutionScale;
     }
 
     if (this.panel) {
-      this.panel.width = config.editorWidth;
+      // this.panel.width = config.editorWidth;
+      this.panel.y = config.screenHeight / 2;
+      this.panel.displayHeight = config.screenHeight;
     }
+
+    if (this.continueButton.background) {
+      this.continueButton.background.scale = 1 / config.resolutionScale;
+      this.continueButton.background.x =
+        config.screenWidth - CONTINUE_BUTTON_WIDTH / 2 / config.resolutionScale;
+      this.continueButton.background.y =
+        config.screenHeight -
+        CONTINUE_BUTTON_HEIGHT / 2 / config.resolutionScale;
+    }
+
+    // this.cameras.main.setZoom(1)
+
+    // this.tabs.forEach((tab, index) => {
+    //   const tabWidth = config.editorWidth / this.tabs.length;
+    //
+    //   if (tab.background) {
+    //     // index * tabWidth + tabWidth / 2,
+    //     //         TAB_HEIGHT / config.scale / 2,
+    //     //         tabWidth,
+    //     //         TAB_HEIGHT / config.scale,
+    //
+    //     tab.background.setSize(tabWidth, TAB_HEIGHT / config.scale);
+    //     tab.background.x = index * tabWidth + tabWidth / 2;
+    //     tab.background.y = TAB_HEIGHT / config.scale / 2;
+    //   }
+    //
+    //   tab.contents.forEach((content) => {
+    //     content.obj && (content.obj.scale = content.scale / config.scale);
+    //   });
+    // });
 
     // const currentTab = this.tabs.find((tab) => tab.id === this.currentTab);
     // if (currentTab) {

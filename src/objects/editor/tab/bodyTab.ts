@@ -10,6 +10,10 @@ export class BodyTab extends Tab {
       new FatCellContent(),
       new BrainCellContent(),
       new BoneCellContent(),
+      new BoneCellContent(),
+      new BoneCellContent(),
+      new BoneCellContent(),
+      new BoneCellContent(),
     ]);
   }
 }

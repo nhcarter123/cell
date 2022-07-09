@@ -8,9 +8,9 @@ type TPhysicsDefaults = Pick<
 >;
 
 // globals
-export const SCREEN_WIDTH = 400;
-export const SCREEN_HEIGHT = 400;
-export const EDITOR_WIDTH = 400;
+export const ASPECT_RATIO = 16 / 9;
+export const MIN_WIDTH = 1280;
+export const MIN_HEIGHT = 720;
 export const RADIUS = 20;
 export const PADDING = 4;
 export const SPACING = RADIUS * 2 + PADDING;
@@ -34,12 +34,14 @@ class Config {
   public startingScreenHeight: number;
   public editorWidth: number;
   public scale: number;
+  public resolutionScale: number;
 
   constructor() {
     this.screenWidth = 0;
     this.screenHeight = 0;
     this.editorWidth = 0;
     this.scale = 0;
+    this.resolutionScale = 1;
     this.startingScreenWidth = 0;
     this.startingScreenHeight = 0;
   }
@@ -56,24 +58,47 @@ class Config {
     //
     // this.previousWidth = window.innerWidth;
     // this.previousHeight = window.innerHeight;
-    // const maxSize = Math.max(window.innerWidth, window.innerHeight);
 
-    // if (maxSize < 1300) {
-    //   this.scale = BASE_SCALE - (1300 - maxSize) / 1600;
+    // const minSize = Math.min(window.innerWidth, window.innerHeight);
+
+    const widthDiff = (MIN_WIDTH - window.innerWidth) / MIN_WIDTH;
+    const heightDiff = (MIN_HEIGHT - window.innerHeight) / MIN_HEIGHT;
+
+    if (widthDiff > 0 || heightDiff > 0) {
+      if (widthDiff > heightDiff) {
+        this.scale =
+          (BASE_SCALE - (MIN_WIDTH - window.innerWidth) / MIN_WIDTH) *
+          this.resolutionScale;
+      } else {
+        this.scale =
+          (BASE_SCALE - (MIN_HEIGHT - window.innerHeight) / MIN_HEIGHT) *
+          this.resolutionScale;
+      }
+    } else {
+      this.scale = BASE_SCALE * this.resolutionScale;
+    }
+
+    // console.log(this.scale);
+
+    //
+    //
+    // if (window.innerWidth < MIN_WIDTH) {
+    //   this.scale = BASE_SCALE - (800 - minSize) / 800;
     // } else {
     //   this.scale = BASE_SCALE;
     // }
-    this.scale = BASE_SCALE;
 
     this.screenWidth = window.innerWidth / this.scale;
     this.screenHeight = window.innerHeight / this.scale;
-    this.editorWidth = this.screenWidth / 4;
+    this.editorWidth = 400 / this.resolutionScale;
 
     if (this.startingScreenWidth === 0) {
       this.startingScreenWidth = this.screenWidth;
       this.startingScreenHeight = this.screenHeight;
     }
 
+    console.log(this.screenWidth);
+    console.log(this.screenHeight);
     game.scale.resize(this.screenWidth, this.screenHeight);
     // game.scale.setGameSize(window.innerWidth, window.innerHeight);
     game.scale.setZoom(this.scale);
@@ -87,7 +112,7 @@ class Config {
       backgroundColor: "#33A5E7",
       scale: {
         mode: Phaser.Scale.ScaleModes.NONE,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
+        // autoCenter: Phaser.Scale.CENTER_HORIZONTALLY,
       },
       render: {
         antialias: false,

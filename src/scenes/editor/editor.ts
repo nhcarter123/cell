@@ -87,6 +87,7 @@ export default class Editor extends Phaser.Scene {
       saveDataToLocalStorage();
 
       this.scene.sleep(ESceneKey.EditorGUI);
+      this.scene.sleep(ESceneKey.EditorBackground);
       this.scene.switch(ESceneKey.Ocean);
     });
 
@@ -103,11 +104,12 @@ export default class Editor extends Phaser.Scene {
       // this.drawAvailableSpots();
     });
     nKey.on("down", () => {
-      saveData.organismHistory.push(saveOrganism(this.organism));
-      saveDataToLocalStorage();
-
-      this.organism.cells.forEach((cell) => cell.destroy());
-      this.organism.cells = [];
+      console.log(saveOrganism(this.organism));
+      // saveData.organismHistory.push(saveOrganism(this.organism));
+      // saveDataToLocalStorage();
+      //
+      // this.organism.cells.forEach((cell) => cell.destroy());
+      // this.organism.cells = [];
     });
 
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -119,12 +121,12 @@ export default class Editor extends Phaser.Scene {
   getMousePos(): Vector {
     return {
       x:
-        (this.input.mousePointer.x -
+        (this.input.activePointer.x -
           (config.screenWidth + config.editorWidth) / 2) /
           this.zoom +
         this.scrollX,
       y:
-        (this.input.mousePointer.y - config.screenHeight / 2) / this.zoom +
+        (this.input.activePointer.y - config.screenHeight / 2) / this.zoom +
         this.scrollY,
     };
   }
@@ -146,7 +148,7 @@ export default class Editor extends Phaser.Scene {
     );
 
     let clicked = false;
-    if (this.input.mousePointer.leftButtonDown()) {
+    if (this.input.activePointer.leftButtonDown()) {
       if (!this.leftButtonPressed) {
         this.leftButtonPressed = true;
         clicked = true;
@@ -158,7 +160,7 @@ export default class Editor extends Phaser.Scene {
 
     if (editorState.mouseCells.length) {
       this.heldCellDuration += 1;
-      const inEditor = this.input.mousePointer.x < config.editorWidth;
+      const inEditor = this.input.activePointer.x < config.editorWidth;
 
       if (clicked && inEditor && this.heldCellDuration > 60) {
         this.sellCell();
@@ -241,7 +243,7 @@ export default class Editor extends Phaser.Scene {
 
     this.hoveredCell = hoveredCell;
 
-    if (this.input.mousePointer.leftButtonReleased()) {
+    if (this.input.activePointer.leftButtonReleased()) {
       this.leftButtonPressed = false;
     }
   }
@@ -250,7 +252,8 @@ export default class Editor extends Phaser.Scene {
     const bounds = this.organism.getBounds();
     this.offset = getCenter(bounds);
 
-    this.targetZoom = 4 / Math.pow(1 + getMaxDiff(bounds) / 600, 1.3);
+    this.targetZoom =
+      4 / Math.pow(1 + getMaxDiff(bounds) / 600, 1.3) / config.resolutionScale;
     this.targetScrollX = this.offset.x;
     this.targetScrollY = this.offset.y;
   }

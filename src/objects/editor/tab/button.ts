@@ -1,3 +1,4 @@
+import config from "../../../config";
 import { DEFAULT_TAB_COLOR, HOVERED_TAB_COLOR } from "./tab";
 
 export const DEFAULT_BUTTON_COLOR =
@@ -35,6 +36,6 @@ export class Button {
       .on("pointerdown", onClick)
       .on("pointerover", onHover)
       .on("pointerout", onExitHover)
-      .setStrokeStyle(4, DEFAULT_STROKE_COLOR);
+      .setStrokeStyle(4 / config.resolutionScale, DEFAULT_STROKE_COLOR);
   }
 }

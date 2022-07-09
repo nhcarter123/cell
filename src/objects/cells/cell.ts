@@ -144,6 +144,9 @@ export class Cell {
       this.offset.y * SPACING,
       this.imageKey
     );
+
+    this.setImage(matter);
+
     this.image.scale = 0.65;
     this.image.depth = this.depth;
 
@@ -327,27 +330,7 @@ export class Cell {
       this.health -= 0.0025;
     }
 
-    if (this.image) {
-      if (this.obj) {
-        this.image.x = this.obj.position.x;
-        this.image.y = this.obj.position.y;
-
-        this.image.angle =
-          this.obj.parent === this.obj
-            ? RadToDeg(this.obj.angle) + this.physicsAngleOffset
-            : RadToDeg(this.obj.parent.angle) + this.angleOffset;
-      } else if (matter) {
-        const neighbor = this.getFirstNeighborCell();
-        if (neighbor?.cell.obj) {
-          this.image.x = neighbor.cell.obj.position.x;
-          this.image.y = neighbor.cell.obj.position.y;
-          this.image.angle =
-            RadToDeg(neighbor.cell.obj.parent.angle) + this.angleOffset;
-        }
-      } else {
-        this.image.angle = this.angleOffset;
-      }
-    }
+    this.setImage(matter);
 
     // show health bar when life changes
     if (this.health !== this.previousHealth) {
@@ -451,5 +434,29 @@ export class Cell {
         this.checkPerpendicular(30) &&
         c.checkPerpendicular(210)
     );
+  }
+
+  setImage(matter?: Phaser.Physics.Matter.MatterPhysics) {
+    if (this.image) {
+      if (this.obj) {
+        this.image.x = this.obj.position.x;
+        this.image.y = this.obj.position.y;
+
+        this.image.angle =
+          this.obj.parent === this.obj
+            ? RadToDeg(this.obj.angle) + this.physicsAngleOffset
+            : RadToDeg(this.obj.parent.angle) + this.angleOffset;
+      } else if (matter) {
+        const neighbor = this.getFirstNeighborCell();
+        if (neighbor?.cell.obj) {
+          this.image.x = neighbor.cell.obj.position.x;
+          this.image.y = neighbor.cell.obj.position.y;
+          this.image.angle =
+            RadToDeg(neighbor.cell.obj.parent.angle) + this.angleOffset;
+        }
+      } else {
+        this.image.angle = this.angleOffset;
+      }
+    }
   }
 }

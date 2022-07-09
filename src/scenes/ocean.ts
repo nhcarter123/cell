@@ -1,16 +1,24 @@
-import { pointDir, pointDist, subtractVectors } from "../helpers/math";
+import {
+  lengthDirX,
+  lengthDirY,
+  lerp,
+  pointDir,
+  pointDist,
+} from "../helpers/math";
 import { Organism } from "../objects/organism";
 import { Cell } from "../objects/cells/cell";
 import { compact } from "lodash";
 import { ESceneKey } from "../index";
-import { loadOrganism, saveData } from "../context/saveData";
+import { ISavedCell, loadOrganism, saveData } from "../context/saveData";
 import star from "../savedOrganisms/star";
 import config from "../config";
 import OutlinePipelinePlugin from "phaser3-rex-plugins/plugins/outlinepipeline-plugin";
+import { Vector } from "matter";
+import org1 from "../savedOrganisms/org1";
 
-interface IFindResult {
-  closestCellDist: number;
-  closestCell: Cell | undefined;
+interface IFindResult<T> {
+  closestDist: number;
+  closest: T | undefined;
 }
 
 const BACKGROUND_DEPTH = 300;
@@ -20,6 +28,9 @@ export default class Ocean extends Phaser.Scene {
   private backgroundShader?: Phaser.GameObjects.Shader;
   private leftButtonPressed: boolean;
   private pipelineInstance?: OutlinePipelinePlugin;
+  private targetZoom: number;
+  private targetOffset: Vector;
+  private player: Organism;
 
   constructor() {
     super({
@@ -33,28 +44,23 @@ export default class Ocean extends Phaser.Scene {
           },
           debug: {
             showJoint: false,
-            // showBody: false,
+            showBody: false,
           },
         },
       },
     });
 
     this.organisms = [];
+    this.player = loadOrganism(saveData.organism);
     this.leftButtonPressed = false;
+    this.targetZoom = 1;
+    this.targetOffset = { x: 0, y: 0 };
   }
 
   create() {
     // this.matter.add.mouseSpring();
     // this.debugCircle = this.add.circle(0, 0, 20, 0xffffff);
-    this.organisms = [
-      loadOrganism(saveData.organism),
-      loadOrganism({
-        isPlayer: false,
-        x: 600,
-        y: 600,
-        cells: star,
-      }),
-    ];
+    this.organisms = [this.player];
 
     this.pipelineInstance = this.plugins.get(
       "rexOutlinePipeline"
@@ -67,14 +73,12 @@ export default class Ocean extends Phaser.Scene {
       config.screenWidth,
       config.screenHeight
     );
-    this.backgroundShader.scale = 2;
-    // back.x = -200;
     this.backgroundShader.depth = -100;
 
-    this.matter.add.rectangle(400, 200, 200, 150, {
-      restitution: 0.9,
-      isStatic: true,
-    });
+    // this.matter.add.rectangle(400, 200, 200, 150, {
+    //   restitution: 0.9,
+    //   isStatic: true,
+    // });
 
     // create cells
     this.organisms.forEach((org) =>
@@ -85,9 +89,8 @@ export default class Ocean extends Phaser.Scene {
     const player = this.organisms.find((org) => org.isPlayer);
 
     if (player?.brain?.image) {
-      this.cameras.main.startFollow(player.brain.image, false, 0.015, 0.015);
+      this.cameras.main.startFollow(player.brain.image, false, 0.03, 0.03);
       this.cameras.main.fadeIn(1000);
-      this.cameras.main.zoom = 1.1;
       // this.cameras.main.setPosition(100), 100;
     }
   }
@@ -97,78 +100,160 @@ export default class Ocean extends Phaser.Scene {
 
     if (this.backgroundShader) {
       this.backgroundShader.setUniform("offset.value", [
-        this.cameras.main.scrollX / BACKGROUND_DEPTH,
-        -this.cameras.main.scrollY / BACKGROUND_DEPTH,
+        (this.cameras.main.scrollX /
+          BACKGROUND_DEPTH /
+          config.resolutionScale) *
+          this.cameras.main.zoom,
+        (-this.cameras.main.scrollY /
+          BACKGROUND_DEPTH /
+          config.resolutionScale) *
+          this.cameras.main.zoom,
       ]);
       this.backgroundShader.x =
         this.cameras.main.scrollX + config.screenWidth / 2;
       this.backgroundShader.y =
         this.cameras.main.scrollY + config.screenHeight / 2;
+      this.backgroundShader.width = config.screenWidth;
+      this.backgroundShader.height = config.screenHeight;
       this.backgroundShader.scale = 1 / this.cameras.main.zoom;
     }
 
     // if (this.debugCircle) {
     //   this.debugCircle.x =
-    //     this.input.mousePointer.x + this.cameras.main.scrollX;
+    //     this.input.activePointer.x + this.cameras.main.scrollX;
     //   this.debugCircle.y =
-    //     this.input.mousePointer.y + this.cameras.main.scrollY;
+    //     this.input.activePointer.y + this.cameras.main.scrollY;
     // }
 
-    const mouseX = this.input.mousePointer.x + this.cameras.main.scrollX;
-    const mouseY = this.input.mousePointer.y + this.cameras.main.scrollY;
+    const mouseX = this.input.activePointer.x + this.cameras.main.scrollX;
+    const mouseY = this.input.activePointer.y + this.cameras.main.scrollY;
 
-    if (this.input.mousePointer.leftButtonDown()) {
+    if (this.input.activePointer.leftButtonDown()) {
       if (!this.leftButtonPressed) {
         this.leftButtonPressed = true;
       }
       // const diff = angleDiff(org.avgAngle, angleToMouse);
 
       // console.log(
-      //   pointDir(500, 500, this.input.mousePointer.x, this.input.mousePointer.y)
+      //   pointDir(500, 500, this.input.activePointer.x, this.input.activePointer.y)
       // );
 
       // const surroundingCells = org.brain.getSurroundingCells();
     }
 
-    if (this.input.mousePointer.leftButtonReleased()) {
+    if (this.input.activePointer.leftButtonReleased()) {
       this.leftButtonPressed = false;
     }
 
     this.organisms.forEach((org) => {
-      if (this.input.mousePointer.leftButtonDown() && org.isPlayer) {
-        org.targetDir = pointDir(
-          org.centerOfMass.x,
-          org.centerOfMass.y,
-          mouseX,
-          mouseY
-        );
+      const distanceToPlayer = !org.isPlayer
+        ? pointDist(
+            this.player.centerOfMass.x,
+            this.player.centerOfMass.y,
+            org.centerOfMass.x,
+            org.centerOfMass.y
+          )
+        : 0;
 
-        org.moveTowards(this.matter);
-      }
+      const deletionDistance =
+        Math.max(config.screenWidth, config.screenHeight) + 1100;
+      const placementDistance = deletionDistance - 1800;
 
-      org.calcCenterOfMass();
-      // org.simulateMovement(this.matter);
+      if (distanceToPlayer < deletionDistance) {
+        if (this.input.activePointer.leftButtonDown() && org.isPlayer) {
+          org.targetDir = pointDir(
+            org.centerOfMass.x,
+            org.centerOfMass.y,
+            mouseX,
+            mouseY
+          );
 
-      org.update(this.input.mousePointer.leftButtonDown(), this.matter);
+          org.moveTowards(this.matter);
+        }
 
-      if (org.isPlayer && org.brain?.obj) {
-        // console.log(org.centerOfMass.x);
-        // this.cameras.main.setFollowOffset(
-        //   org.centerOfMass.x,
-        //   org.centerOfMass.y
-        // );
-        const offset = subtractVectors(
-          org.brain.obj.position,
-          org.centerOfMass
-        );
-        this.cameras.main.setFollowOffset(offset.x / 4, offset.y / 4);
+        org.calcCenterOfMass();
+        // org.simulateMovement(this.matter);
+
+        org.update(this.input.activePointer.leftButtonDown(), this.matter);
+
+        if (org.isPlayer && org.brain?.obj) {
+          // console.log(org.centerOfMass.x);
+          // this.cameras.main.setFollowOffset(
+          //   org.centerOfMass.x,
+          //   org.centerOfMass.y
+          // );
+          // const offset = subtractVectors(
+          //   org.brain.obj.position,
+          //   org.centerOfMass
+          // );
+          this.targetZoom =
+            (1.3 - org.brain.obj.speed / 8) / config.resolutionScale;
+          this.targetOffset = {
+            x: -org.brain.obj.velocity.x * 70,
+            y: -org.brain.obj.velocity.y * 70,
+          };
+
+          if (this.organisms.length < 8) {
+            const variance = (Math.random() - 0.5) * 1000;
+
+            const dir = pointDir(
+              0,
+              0,
+              org.brain.obj.velocity.x,
+              org.brain.obj.velocity.y
+            );
+
+            const spawnPos = {
+              x:
+                org.centerOfMass.x +
+                lengthDirX(placementDistance, dir) +
+                lengthDirX(variance, dir + 90),
+              y:
+                org.centerOfMass.y +
+                lengthDirY(placementDistance, dir) +
+                lengthDirY(variance, dir + 90),
+            };
+
+            const result = this.findClosestOrganism(
+              spawnPos.x,
+              spawnPos.y,
+              org.id
+            );
+
+            if (result.closestDist > 1400) {
+              console.log(result.closestDist);
+              const newOrg = loadOrganism({
+                isPlayer: false,
+                x: spawnPos.x,
+                y: spawnPos.y,
+                cells: this.getRandomOrganism(),
+              });
+              newOrg.create(this.add, this.pipelineInstance, this.matter);
+
+              this.organisms.push(newOrg);
+            }
+          }
+        }
+      } else {
+        this.removeOrganism(org);
       }
     });
+
+    this.cameras.main.zoom = lerp(
+      this.cameras.main.zoom,
+      this.targetZoom,
+      0.015
+    );
+
+    this.cameras.main.setFollowOffset(
+      lerp(this.cameras.main.followOffset.x, this.targetOffset.x, 0.014),
+      lerp(this.cameras.main.followOffset.y, this.targetOffset.y, 0.014)
+    );
   }
 
-  findClosestCell(x: number, y: number, isPlayer: boolean): IFindResult {
-    let closestCellDist = Infinity;
-    let closestCell = undefined;
+  findClosestCell(x: number, y: number, isPlayer: boolean): IFindResult<Cell> {
+    let closestDist = Infinity;
+    let closest: Cell | undefined = undefined;
 
     this.organisms.forEach((org) => {
       if (isPlayer !== org.isPlayer) {
@@ -181,16 +266,38 @@ export default class Ocean extends Phaser.Scene {
               cell.obj.position.y
             );
 
-            if (dist < closestCellDist) {
-              closestCellDist = dist;
-              closestCell = cell;
+            if (dist < closestDist) {
+              closestDist = dist;
+              closest = cell;
             }
           }
         });
       }
     });
 
-    return { closestCell, closestCellDist };
+    return { closest, closestDist };
+  }
+
+  findClosestOrganism(
+    x: number,
+    y: number,
+    ignoreId: string
+  ): IFindResult<Organism> {
+    let closestDist = Infinity;
+    let closest: Organism | undefined = undefined;
+
+    this.organisms.forEach((org) => {
+      if (ignoreId !== org.id) {
+        const dist = pointDist(x, y, org.centerOfMass.x, org.centerOfMass.y);
+
+        if (dist < closestDist) {
+          closestDist = dist;
+          closest = org;
+        }
+      }
+    });
+
+    return { closest, closestDist };
   }
 
   findCellsWithinRadius(
@@ -219,5 +326,17 @@ export default class Ocean extends Phaser.Scene {
         }
       })
     );
+  }
+
+  removeOrganism(organism: Organism) {
+    this.organisms = this.organisms.filter((org) => org.id !== organism.id);
+    organism.destroy(this.matter);
+  }
+
+  getRandomOrganism(): ISavedCell[] {
+    const orgs = [star, org1];
+    const org = orgs[Math.floor(Math.random() * orgs.length)];
+
+    return org ? org : [];
   }
 }

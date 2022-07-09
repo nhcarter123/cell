@@ -1,7 +1,7 @@
 import { EImageKey } from "../../../scenes/load";
 import { ShopContent } from "../shopContent/shopContent";
 import { Button } from "./button";
-import { EDITOR_WIDTH } from "../../../config";
+import config from "../../../config";
 
 export const DEFAULT_TAB_COLOR =
   Phaser.Display.Color.ValueToColor("#727272").color;
@@ -9,7 +9,6 @@ export const HOVERED_TAB_COLOR =
   Phaser.Display.Color.ValueToColor("#b1b1b1").color;
 export const SELECTED_TAB_COLOR =
   Phaser.Display.Color.ValueToColor("#3e3e3e").color;
-export const STROKE_COLOR = Phaser.Display.Color.ValueToColor("#545454").color;
 
 const ITEMS_PER_ROW = 5;
 
@@ -46,12 +45,19 @@ export class Tab extends Button {
       height / 2,
       this.imageKey
     );
-    this.image.scale = this.scale;
+    this.image.scale = this.scale / config.resolutionScale;
+
+    const padding = 50 / config.resolutionScale;
+    const step = (config.editorWidth - 2 * padding) / (ITEMS_PER_ROW - 1);
 
     if (onBuy) {
       this.contents.forEach((content, index) => {
-        const step = (EDITOR_WIDTH - 20) / ITEMS_PER_ROW;
-        content.create(add, step * index + 60, height + 60, onBuy);
+        content.create(
+          add,
+          step * (index % ITEMS_PER_ROW) + padding,
+          height + step * Math.floor(index / ITEMS_PER_ROW) + padding,
+          onBuy
+        );
       });
     }
   }
