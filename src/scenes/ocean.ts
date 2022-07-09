@@ -98,16 +98,12 @@ export default class Ocean extends Phaser.Scene {
   update(time: number, delta: number) {
     super.update(time, delta);
 
+    // console.log(this.cameras.main.scrollX);
     if (this.backgroundShader) {
+      this.backgroundShader.setUniform("scale.value", this.cameras.main.zoom);
       this.backgroundShader.setUniform("offset.value", [
-        (this.cameras.main.scrollX /
-          BACKGROUND_DEPTH /
-          config.resolutionScale) *
-          this.cameras.main.zoom,
-        (-this.cameras.main.scrollY /
-          BACKGROUND_DEPTH /
-          config.resolutionScale) *
-          this.cameras.main.zoom,
+        this.cameras.main.scrollX / BACKGROUND_DEPTH / config.resolutionScale,
+        -this.cameras.main.scrollY / BACKGROUND_DEPTH / config.resolutionScale,
       ]);
       this.backgroundShader.x =
         this.cameras.main.scrollX + config.screenWidth / 2;
@@ -116,6 +112,7 @@ export default class Ocean extends Phaser.Scene {
       this.backgroundShader.width = config.screenWidth;
       this.backgroundShader.height = config.screenHeight;
       this.backgroundShader.scale = 1 / this.cameras.main.zoom;
+      // this.backgroundShader.setOrigin(0, 0);
     }
 
     // if (this.debugCircle) {
@@ -174,7 +171,10 @@ export default class Ocean extends Phaser.Scene {
         org.calcCenterOfMass();
         // org.simulateMovement(this.matter);
 
-        org.update(this.input.activePointer.leftButtonDown(), this.matter);
+        org.update(
+          org.isPlayer ? this.input.activePointer.leftButtonDown() : true,
+          this.matter
+        );
 
         if (org.isPlayer && org.brain?.obj) {
           // console.log(org.centerOfMass.x);

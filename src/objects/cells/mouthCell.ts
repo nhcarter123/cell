@@ -32,7 +32,7 @@ export class MouthCell extends Cell {
     this.attackCoolDown = 180;
     this.impulseFrames = 5;
     this.attackFrames = 16;
-    this.damage = 1;
+    this.damage = 3;
     this.hitEnemies = [];
   }
 
@@ -48,12 +48,12 @@ export class MouthCell extends Cell {
             this.organism?.isPlayer
           );
 
-          if (findResult && findResult.closestCellDist < RADIUS + 70) {
+          if (findResult && findResult.closestDist < RADIUS + 70) {
             this.currentAttackCoolDown =
               this.attackCoolDown + this.attackFrames;
             this.currentAttackFrames = this.attackFrames + this.impulseFrames;
             this.hitEnemies = [];
-            this.target = findResult.closestCell;
+            this.target = findResult.closest;
           }
         }
       } else {
