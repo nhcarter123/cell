@@ -60,7 +60,6 @@ export class Organism {
   public cells: Cell[];
   public centerOfMass: MatterJS.Vector;
   public ocean?: Ocean;
-  private avgDiff: number;
   // private vel: Vector;
   // private angVel: number;
   public targetDir: number;
@@ -74,9 +73,6 @@ export class Organism {
     this.cells = cells;
     this.brain = cells.find((cell) => cell instanceof BrainCell);
     this.centerOfMass = { x, y };
-    this.avgDiff = 0;
-    // this.vel = { x: 0, y: 0 };
-    // this.angVel = 0;
     this.skinResolution = 0;
     this.targetDir = 0;
     this.id = nanoid();
@@ -229,7 +225,11 @@ export class Organism {
         const parts = compact(
           boneCells.map((c) => {
             c.obj && matter.world.remove(c.obj);
-            c.obj = c.createBody(matter, this);
+            c.obj = c.createBody(
+              matter,
+              this,
+              RadToDeg(this.brain?.obj?.angle || 0)
+            );
             // @ts-ignore
             c.obj.cell = c;
 
@@ -416,10 +416,10 @@ export class Organism {
           //   cell.obj.parent.torque += 0.00001 * diff; //- cell.obj.angularVelocity / 3;
           // }
 
-          angTotal += angleDiff(
-            rotation - cellAndAngle.angle + saveData.direction - 90,
-            this.targetDir
-          );
+          // angTotal += angleDiff(
+          //   rotation - cellAndAngle.angle + saveData.direction - 90,
+          //   this.targetDir
+          // );
         }
       }
     }
@@ -429,11 +429,13 @@ export class Organism {
     // }
     // console.log(totalMass);
 
-    this.centerOfMass = {
-      x: xTotal / totalMass,
-      y: yTotal / totalMass,
-    };
-    this.avgDiff = angTotal / totalCells;
+    if (totalMass) {
+      this.centerOfMass = {
+        x: xTotal / totalMass,
+        y: yTotal / totalMass,
+      };
+    }
+    // this.avgDiff = angTotal / totalCells;
   }
   //
   // moveTowards() {

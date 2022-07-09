@@ -2,10 +2,11 @@ import { compact } from "lodash";
 import { Organism } from "../organism";
 import { HealthBar } from "../healthbar";
 import { BodyType, Vector } from "matter";
-import { floatEquals } from "../../helpers/math";
+import { floatEquals, rotateVector } from "../../helpers/math";
 import RadToDeg = Phaser.Math.RadToDeg;
 import { EImageKey } from "../../scenes/load";
 import { PHYSICS_DEFAULTS, RAD_3_OVER_2, RADIUS, SPACING } from "../../config";
+import DegToRad = Phaser.Math.DegToRad;
 
 type TCellOverrides = Partial<
   Pick<
@@ -126,12 +127,13 @@ export class Cell {
   create(
     org: Organism,
     add: Phaser.GameObjects.GameObjectFactory,
-    matter?: Phaser.Physics.Matter.MatterPhysics
+    matter?: Phaser.Physics.Matter.MatterPhysics,
+    angle = 20
   ) {
     this.organism = org;
 
     if (matter) {
-      this.obj = this.createBody(matter, org);
+      this.obj = this.createBody(matter, org, angle);
       if (this.obj) {
         // @ts-ignore
         this.obj.cell = this;
@@ -165,7 +167,8 @@ export class Cell {
 
   createBody(
     matter: Phaser.Physics.Matter.MatterPhysics,
-    org: Organism
+    org: Organism,
+    angle: number
   ): BodyType | undefined {
     // this.obj = matter.add.circle(
     //   org.centerOfMass.x + this.offsetX * SPACING,
@@ -176,18 +179,23 @@ export class Cell {
     //     mass: this.mass,
     //   }
     // );
+    const offset = rotateVector(
+      { x: 0, y: 0 },
+      { x: this.offset.x * SPACING, y: this.offset.y * SPACING },
+      angle
+    );
 
     this.physicsAngleOffset = this.angleOffset;
 
     return matter.bodies.polygon(
-      org.centerOfMass.x + this.offset.x * SPACING,
-      org.centerOfMass.y + this.offset.y * SPACING,
+      org.centerOfMass.x + offset.x,
+      org.centerOfMass.y + offset.y,
       6,
       RADIUS,
       {
         ...PHYSICS_DEFAULTS,
         mass: this.mass,
-        // angle: DegToRad(this.angleOffset + 90),
+        angle: DegToRad(angle),
       }
     );
   }
@@ -364,6 +372,9 @@ export class Cell {
         this.obj.parent.parts = this.obj.parent.parts.filter(
           (part) => part !== this.obj
         );
+        if (this.obj.parent.parts.length === 1) {
+          matter.world.remove(this.obj.parent);
+        }
       }
 
       matter.world.remove(this.obj);

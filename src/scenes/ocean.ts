@@ -43,8 +43,8 @@ export default class Ocean extends Phaser.Scene {
             y: 0,
           },
           debug: {
-            showJoint: false,
-            showBody: false,
+            // showJoint: false,
+            // showBody: false,
           },
         },
       },
@@ -221,14 +221,13 @@ export default class Ocean extends Phaser.Scene {
             );
 
             if (result.closestDist > 1400) {
-              console.log(result.closestDist);
               const newOrg = loadOrganism({
                 isPlayer: false,
                 x: spawnPos.x,
                 y: spawnPos.y,
                 cells: this.getRandomOrganism(),
               });
-              newOrg.create(this.add, this.pipelineInstance, this.matter);
+              newOrg.create(this.add, this.pipelineInstance, this.matter, this);
 
               this.organisms.push(newOrg);
             }

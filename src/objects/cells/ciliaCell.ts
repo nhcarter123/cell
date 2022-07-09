@@ -20,7 +20,8 @@ export class CiliaCell extends Cell {
 
   createBody(
     matter: Phaser.Physics.Matter.MatterPhysics,
-    org: Organism
+    org: Organism,
+    angle: number
   ): MatterJS.BodyType | undefined {
     return undefined;
   }

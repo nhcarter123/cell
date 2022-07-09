@@ -45,36 +45,48 @@ export class SpikeCell extends Cell {
 
   createBody(
     matter: Phaser.Physics.Matter.MatterPhysics,
-    org: Organism
+    org: Organism,
+    angle: number
   ): BodyType {
     const offset = rotateVector(
       { x: 0, y: 0 },
+      { x: this.offset.x, y: this.offset.y },
+      angle
+    );
+
+    const imageOffset = rotateVector(
+      { x: 0, y: 0 },
       { x: this.imageOffset.x - 0.5, y: this.imageOffset.y - 0.4 },
-      this.angleOffset + 180
+      this.angleOffset + 180 + angle
     );
 
     return matter.bodies.trapezoid(
-      org.centerOfMass.x + (this.offset.x + offset.x) * SPACING,
-      org.centerOfMass.y + (this.offset.y + offset.y) * SPACING,
+      org.centerOfMass.x + (offset.x + imageOffset.x) * SPACING,
+      org.centerOfMass.y + (offset.y + imageOffset.y) * SPACING,
       24,
       84,
       1,
       {
         mass: this.mass,
-        angle: DegToRad(this.angleOffset),
+        angle: DegToRad(this.angleOffset + angle),
         ...PHYSICS_DEFAULTS,
-        onCollideCallback: ({ bodyB }: MatterCollisionData) => {
-          if (
-            this.currentAttackCooldown < 0 &&
-            // @ts-ignore
-            bodyB.cell &&
-            // @ts-ignore
-            bodyB.cell.organism?.isPlayer !== this.organism?.isPlayer
-          ) {
-            this.currentAttackCooldown = this.attackCoolDown;
+        onCollideActiveCallback: ({ bodyA, bodyB }: MatterCollisionData) => {
+          if (this.currentAttackCooldown < 0) {
+            const enemyCell: Cell | undefined =
+              // @ts-ignore
+              bodyB.cell?.organism?.isPlayer !== this.organism?.isPlayer
+                ? // @ts-ignore
+                  bodyB.cell
+                : // @ts-ignore
+                bodyA.cell?.organism?.isPlayer !== this.organism?.isPlayer
+                ? // @ts-ignore
+                  bodyA.cell
+                : undefined;
 
-            // @ts-ignore
-            bodyB.cell.health -= this.damage;
+            if (enemyCell) {
+              this.currentAttackCooldown = this.attackCoolDown;
+              enemyCell.health -= this.damage;
+            }
           }
         },
       }
