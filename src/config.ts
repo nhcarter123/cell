@@ -8,7 +8,6 @@ type TPhysicsDefaults = Pick<
 >;
 
 // globals
-export const ASPECT_RATIO = 16 / 9;
 export const MIN_WIDTH = 1280;
 export const MIN_HEIGHT = 720;
 export const RADIUS = 20;
@@ -22,7 +21,7 @@ export const PHYSICS_DEFAULTS: TPhysicsDefaults = {
   restitution: 0,
   frictionAir: 0.015,
   frictionStatic: 0,
-  isStatic: false,
+  // isStatic: true,
 };
 
 const BASE_SCALE = 1;

@@ -10,7 +10,7 @@ uniform.color: { "type": "3fv", "value": [1.0, 1.0, 1.0] }
 
 precision mediump float;
 
-const int MAX_SHADER_CELLS = 100;
+const int MAX_SHADER_CELLS = 40;
 
 uniform float radius;
 uniform float alpha;
@@ -54,16 +54,15 @@ void main(void) {
 
     for(int i = 0; i < MAX_SHADER_CELLS; i++) {
         vec2 cell = cells[i];
-        if (cell.xy != vec2(-1.)) {
+        if (cell.xy != vec2(0.0)) {
             float dist = distance(st.xy, cell.xy);
-            //
+
             if (dist < radius) {
                 float brightness = 1.0 + radius;
 
                 outColor = alpha * vec4(brightness * color[0], 1.0);
             }
         }
-        /* Do Some Calculation */
     }
 
     gl_FragColor = vec4(outColor);

@@ -22,7 +22,6 @@ export class MouthCell extends Cell {
       health: 8,
       imageKey: EImageKey.MouthCell,
       isBody: false,
-      hasBackground: false,
       mustPlacePerpendicular: true,
     });
 

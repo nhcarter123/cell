@@ -128,12 +128,10 @@ export const loadOrganism = (savedOrganism: ISavedOrganism): Organism => {
 };
 
 export const saveOrganism = (organism: Organism): ISavedOrganism => {
-  const center = getCenter(organism.getBounds()); // todo tests if it should use center of mass instead
-
   return {
     isPlayer: organism.isPlayer,
-    x: center.x,
-    y: center.y,
+    x: organism.centerOfMass.x,
+    y: organism.centerOfMass.y,
     cells: organism.cells.map((cell) => ({
       type: getTypeFromCell(cell),
       offset: cell.offset,

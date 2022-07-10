@@ -21,11 +21,10 @@ export class SpikeCell extends Cell {
       health: 5,
       imageKey: EImageKey.SpikeCell,
       isBody: false,
-      mustPlacePerpendicular: true,
       isBone: true,
-      hasBackground: false,
+      mustPlacePerpendicular: true,
       imageOffsetEditor: { x: 0.5, y: 0.75 },
-      imageOffset: { x: 0.5, y: 0.6 },
+      imageOffset: { x: 0.5, y: 0.7 },
       occupiedSpots: [
         { x: 0, y: 0 },
         { x: 0.5, y: -RAD_3_OVER_2 },
@@ -56,8 +55,8 @@ export class SpikeCell extends Cell {
 
     const imageOffset = rotateVector(
       { x: 0, y: 0 },
-      { x: this.imageOffset.x - 0.5, y: this.imageOffset.y - 0.4 },
-      this.angleOffset + 180 + angle
+      { x: this.imageOffset.x - 0.5, y: this.imageOffset.y - 0.5 },
+      this.angleOffset + angle + 180
     );
 
     return matter.bodies.trapezoid(

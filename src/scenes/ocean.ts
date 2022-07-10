@@ -12,7 +12,6 @@ import { ESceneKey } from "../index";
 import { ISavedCell, loadOrganism, saveData } from "../context/saveData";
 import star from "../savedOrganisms/star";
 import config from "../config";
-import OutlinePipelinePlugin from "phaser3-rex-plugins/plugins/outlinepipeline-plugin";
 import { Vector } from "matter";
 import org1 from "../savedOrganisms/org1";
 
@@ -27,10 +26,9 @@ export default class Ocean extends Phaser.Scene {
   private organisms: Organism[];
   private backgroundShader?: Phaser.GameObjects.Shader;
   private leftButtonPressed: boolean;
-  private pipelineInstance?: OutlinePipelinePlugin;
   private targetZoom: number;
   private targetOffset: Vector;
-  private player: Organism;
+  private player?: Organism;
 
   constructor() {
     super({
@@ -43,15 +41,14 @@ export default class Ocean extends Phaser.Scene {
             y: 0,
           },
           debug: {
-            // showJoint: false,
-            // showBody: false,
+            showJoint: false,
+            showBody: false,
           },
         },
       },
     });
 
     this.organisms = [];
-    this.player = loadOrganism(saveData.organism);
     this.leftButtonPressed = false;
     this.targetZoom = 1;
     this.targetOffset = { x: 0, y: 0 };
@@ -60,11 +57,6 @@ export default class Ocean extends Phaser.Scene {
   create() {
     // this.matter.add.mouseSpring();
     // this.debugCircle = this.add.circle(0, 0, 20, 0xffffff);
-    this.organisms = [this.player];
-
-    this.pipelineInstance = this.plugins.get(
-      "rexOutlinePipeline"
-    ) as OutlinePipelinePlugin;
 
     this.backgroundShader = this.add.shader(
       "ocean",
@@ -79,17 +71,18 @@ export default class Ocean extends Phaser.Scene {
     //   restitution: 0.9,
     //   isStatic: true,
     // });
+  }
+
+  init() {
+    this.player = loadOrganism(saveData.organism);
+
+    this.organisms = [this.player];
 
     // create cells
-    this.organisms.forEach((org) =>
-      org.create(this.add, this.pipelineInstance, this.matter, this)
-    );
+    this.organisms.forEach((org) => org.create(this.add, this.matter, this));
 
-    // setup camera
-    const player = this.organisms.find((org) => org.isPlayer);
-
-    if (player?.brain?.image) {
-      this.cameras.main.startFollow(player.brain.image, false, 0.03, 0.03);
+    if (this.player.brain?.image) {
+      this.cameras.main.startFollow(this.player.brain.image, false, 0.03, 0.03);
       this.cameras.main.fadeIn(1000);
       // this.cameras.main.setPosition(100), 100;
     }
@@ -143,18 +136,20 @@ export default class Ocean extends Phaser.Scene {
     }
 
     this.organisms.forEach((org) => {
-      const distanceToPlayer = !org.isPlayer
-        ? pointDist(
-            this.player.centerOfMass.x,
-            this.player.centerOfMass.y,
-            org.centerOfMass.x,
-            org.centerOfMass.y
-          )
-        : 0;
+      const distanceToPlayer =
+        !org.isPlayer && this.player
+          ? pointDist(
+              this.player.centerOfMass.x,
+              this.player.centerOfMass.y,
+              org.centerOfMass.x,
+              org.centerOfMass.y
+            )
+          : 0;
 
       const deletionDistance =
-        Math.max(config.screenWidth, config.screenHeight) + 1100;
-      const placementDistance = deletionDistance - 1800;
+        Math.max(config.screenWidth, config.screenHeight) + 1500;
+      const placementDistance =
+        Math.max(config.screenWidth, config.screenHeight) + 200;
 
       if (distanceToPlayer < deletionDistance) {
         if (this.input.activePointer.leftButtonDown() && org.isPlayer) {
@@ -193,7 +188,7 @@ export default class Ocean extends Phaser.Scene {
             y: -org.brain.obj.velocity.y * 70,
           };
 
-          if (this.organisms.length < 8) {
+          if (this.organisms.length < 10) {
             const variance = (Math.random() - 0.5) * 1000;
 
             const dir = pointDir(
@@ -220,14 +215,15 @@ export default class Ocean extends Phaser.Scene {
               org.id
             );
 
-            if (result.closestDist > 1400) {
+            if (result.closestDist > 1100) {
+              console.log("spawned");
               const newOrg = loadOrganism({
                 isPlayer: false,
                 x: spawnPos.x,
                 y: spawnPos.y,
                 cells: this.getRandomOrganism(),
               });
-              newOrg.create(this.add, this.pipelineInstance, this.matter, this);
+              newOrg.create(this.add, this.matter, this, Math.random() * 360);
 
               this.organisms.push(newOrg);
             }

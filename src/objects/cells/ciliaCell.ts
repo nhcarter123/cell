@@ -10,7 +10,6 @@ export class CiliaCell extends Cell {
       angleOffset,
       imageKey: EImageKey.CiliaCell,
       isBody: false,
-      hasBackground: false,
       mustPlacePerpendicular: true,
       imageOffsetEditor: { x: 0.5, y: 0.15 },
       imageOffset: { x: 0.5, y: 1.25 },

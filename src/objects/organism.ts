@@ -17,7 +17,6 @@ import { compact } from "lodash";
 import { Vector } from "matter";
 import Ocean from "../scenes/ocean";
 import RadToDeg = Phaser.Math.RadToDeg;
-import { saveData } from "../context/saveData";
 import {
   DAMPING,
   PHYSICS_DEFAULTS,
@@ -43,15 +42,17 @@ export interface IAvailableSpot {
   availableOffsets: number[];
 }
 
-const MAX_SHADER_CELLS = 100;
+const MAX_SHADER_CELLS = 40;
 
-const SKIN_COLOR = Phaser.Display.Color.ValueToColor("#917342");
-const SKIN_OUTLINE_COLOR = Phaser.Display.Color.ValueToColor("#645741").color;
+const SKIN_COLOR = Phaser.Display.Color.ValueToColor("#6c45ea");
+// const SKIN_RADIUS = 310;
+const SKIN_RADIUS = 30;
+const SKIN_ALPHA = 0.7;
+
+const SKIN_OUTLINE_ALPHA = 1;
 const SKIN_THICKNESS = 4;
-const SKIN_RADIUS = 34;
-const SKIN_ALPHA = 0.4;
 
-const padding = RADIUS + 10;
+const padding = SKIN_RADIUS + 10;
 
 export class Organism {
   public id: string;
@@ -60,10 +61,9 @@ export class Organism {
   public cells: Cell[];
   public centerOfMass: MatterJS.Vector;
   public ocean?: Ocean;
-  // private vel: Vector;
-  // private angVel: number;
   public targetDir: number;
   private skinShader?: Phaser.GameObjects.Shader;
+  private skinShader2?: Phaser.GameObjects.Shader;
   private skin?: Phaser.GameObjects.Image;
   private debug?: Phaser.GameObjects.Graphics;
   private skinResolution: number;
@@ -80,16 +80,16 @@ export class Organism {
 
   create(
     add: Phaser.GameObjects.GameObjectFactory,
-    pipeline?: OutlinePipelinePlugin,
     matter?: Phaser.Physics.Matter.MatterPhysics,
-    ocean?: Ocean
+    ocean?: Ocean,
+    startAngle = 0
   ) {
     this.ocean = ocean;
 
-    if (this.isPlayer) {
-      this.debug = add.graphics();
-      this.debug.depth = 100;
-    }
+    // if (this.isPlayer) {
+    //   this.debug = add.graphics();
+    //   this.debug.depth = 100;
+    // }
 
     // this.skinShader.depth = matter ? 10 : -10;
     // this.skinShader.depth = -10;
@@ -103,29 +103,53 @@ export class Organism {
     // this.skinShader.setUniform("resolution.value.y", 50);
 
     // this.skinTexture = add.image(0, 0, "skinTexture");
-    this.cells.forEach((cell) => cell.create(this, add, matter));
+    this.cells.forEach((cell) => cell.create(this, add, matter, startAngle));
 
     this.syncCells(matter);
 
-    this.skinResolution = Math.min(getMaxDiff(this.getBounds(padding)), 500);
+    // todo this can possiby be optimized
+    this.skinResolution = getMaxDiff(this.getBounds(true, padding));
 
-    this.skinShader = add
-      .shader("skin", 0, 0, this.skinResolution, this.skinResolution)
-      .setRenderToTexture(`skin-${this.id}`);
+    this.skinShader = add.shader(
+      "skin",
+      0,
+      0,
+      this.skinResolution,
+      this.skinResolution
+    );
+    // .setRenderToTexture(`skin-${this.id}`);
     this.skinShader.setUniform("color.value", [
       SKIN_COLOR.red / 255,
       SKIN_COLOR.green / 255,
       SKIN_COLOR.blue / 255,
     ]);
     this.skinShader.setUniform("alpha.value", SKIN_ALPHA);
-    this.skin = add.image(0, 0, `skin-${this.id}`);
-    this.skin.depth = matter ? 10 : -10;
+    this.skinShader.depth = matter ? 10 : -10;
 
-    pipeline?.add(this.skin, {
-      // @ts-ignore the typing is just broken on this
-      thickness: SKIN_THICKNESS,
-      outlineColor: SKIN_OUTLINE_COLOR,
-    });
+    this.skinShader2 = add.shader(
+      "skin",
+      0,
+      0,
+      this.skinResolution,
+      this.skinResolution
+    );
+
+    this.skinShader2.setUniform("color.value", [
+      SKIN_COLOR.red / 600,
+      SKIN_COLOR.green / 600,
+      SKIN_COLOR.blue / 600,
+    ]);
+    this.skinShader2.setUniform("alpha.value", SKIN_OUTLINE_ALPHA);
+    this.skinShader2.depth = -12;
+
+    // this.skin = add.image(0, 0, `skin-${this.id}`);
+    // this.skin.depth = matter ? 10 : -10;
+    //
+    // pipeline?.add(this.skin, {
+    //   // @ts-ignore the typing is just broken on this
+    //   thickness: SKIN_THICKNESS,
+    //   outlineColor: SKIN_OUTLINE_COLOR,
+    // });
   }
 
   update(attacking: boolean, matter?: Phaser.Physics.Matter.MatterPhysics) {
@@ -136,10 +160,11 @@ export class Organism {
     // const a = this.cells.sort((b, a) => (b.image?.x || 0) - (a.image?.x || 0));
     // console.log(a[0]);
 
-    const bounds = this.getBounds(padding);
+    const bounds = this.getBounds(true, padding);
     const center = getCenter(bounds);
     const scale = getMaxDiff(bounds);
     const radius = SKIN_RADIUS / scale;
+    const outlineRadius = (SKIN_RADIUS + SKIN_THICKNESS) / scale;
     // console.log(center);
 
     const cellOffsets = [];
@@ -148,7 +173,7 @@ export class Organism {
 
     for (let i = 0; i < MAX_SHADER_CELLS; i++) {
       const cell = this.cells[i];
-      if (cell?.hasBackground && cell.image && cell.health === cell.maxHealth) {
+      if (cell?.isBody && cell.image && cell.health === cell.maxHealth) {
         // if (matter && cell.obj) {
         //   cellOffsets.push(cell.obj.position.x / scale + 0.5);
         //   cellOffsets.push(cell.obj.position.y) / scale + 0.5;
@@ -157,19 +182,27 @@ export class Organism {
         cellOffsets.push((-cell.image.y + center.y) / scale + 0.5);
         // }
       } else {
-        cellOffsets.push(-1);
-        cellOffsets.push(-1);
+        cellOffsets.push(0);
+        cellOffsets.push(0);
       }
     }
 
-    if (this.skinShader && this.skin) {
+    if (this.skinShader && this.skinShader2) {
       this.skinShader.setUniform("cells.value", cellOffsets);
       this.skinShader.setUniform("radius.value", radius);
-      this.skin.x = center.x;
-      this.skin.y = center.y;
+      this.skinShader.x = center.x;
+      this.skinShader.y = center.y;
+      //
+      // // console.log(this.skinShader.uniforms);
+      this.skinShader.scale = scale / this.skinResolution;
 
-      // console.log(this.skinShader.uniforms);
-      this.skin.scale = scale / this.skinResolution;
+      this.skinShader2.setUniform("cells.value", cellOffsets);
+      this.skinShader2.setUniform("radius.value", outlineRadius);
+      this.skinShader2.x = center.x;
+      this.skinShader2.y = center.y;
+      //
+      // // console.log(this.skinShader.uniforms);
+      this.skinShader2.scale = scale / this.skinResolution;
     }
 
     // const cellOffsets = matter
@@ -222,14 +255,12 @@ export class Organism {
       const boneCells = this.aggregateBone(cell);
 
       if (boneCells.length > 1) {
+        const startAngle = this.brain?.obj?.angle || 0;
+
         const parts = compact(
           boneCells.map((c) => {
             c.obj && matter.world.remove(c.obj);
-            c.obj = c.createBody(
-              matter,
-              this,
-              RadToDeg(this.brain?.obj?.angle || 0)
-            );
+            c.obj = c.createBody(matter, this, RadToDeg(startAngle));
             // @ts-ignore
             c.obj.cell = c;
 
@@ -237,7 +268,11 @@ export class Organism {
           })
         );
 
-        const compound = matter.body.create({ parts, ...PHYSICS_DEFAULTS });
+        const compound = matter.body.create({
+          parts,
+          ...PHYSICS_DEFAULTS,
+          angle: startAngle,
+        });
 
         matter.world.add(compound);
       }
@@ -273,17 +308,47 @@ export class Organism {
 
   createLink(matter: Phaser.Physics.Matter.MatterPhysics, c1: Cell, c2: Cell) {
     if (c1.obj && c2.obj) {
-      const offset1 = rotateVector(
-        { x: 0, y: 0 },
-        { x: c1.imageOffset.x - 0.5, y: c1.imageOffset.y - 0.5 },
-        c1.angleOffset + 180
+      const dir = pointDir(
+        c1.obj.position.x,
+        c1.obj.position.y,
+        c2.obj.position.x,
+        c2.obj.position.y
+      );
+      const dist1 = pointDist(
+        0,
+        0,
+        c1.imageOffset.x - 0.5,
+        c1.imageOffset.y - 0.5
       );
 
-      const offset2 = rotateVector(
-        { x: 0, y: 0 },
-        { x: c2.imageOffset.x - 0.5, y: c2.imageOffset.y - 0.5 },
-        c2.angleOffset + 180
+      const dist2 = pointDist(
+        0,
+        0,
+        c2.imageOffset.x - 0.5,
+        c2.imageOffset.y - 0.5
       );
+
+      const offset1 = {
+        x: lengthDirX(dist1, dir + 180),
+        y: lengthDirY(dist1, dir + 180),
+      };
+
+      const offset2 = {
+        x: lengthDirX(dist2, dir),
+        y: lengthDirY(dist2, dir),
+      };
+
+      // const offset1 = rotateVector(
+      //   { x: 0, y: 0 },
+      //   { x: c1.imageOffset.x - 0.5, y: c1.imageOffset.y - 0.5 },
+      //   c1.angleOffset + 180
+      // );
+      //
+      // const offset2 = rotateVector(
+      //   { x: 0, y: 0 },
+      //   { x: c2.imageOffset.x - 0.5, y: c2.imageOffset.y - 0.5 },
+      //   c2.angleOffset + 180
+      // );
 
       const link = matter.add.constraint(
         c1.obj.parent,
@@ -327,14 +392,21 @@ export class Organism {
     }
   }
 
-  getBounds(padding = 0): IBounds {
+  getBounds(bodyOnly = false, padding = 0): IBounds {
     let minX = Infinity;
     let maxX = -Infinity;
     let minY = Infinity;
     let maxY = -Infinity;
 
+    if (!this.cells.length) {
+      minX = 0;
+      maxX = 0;
+      minY = 0;
+      maxY = 0;
+    }
+
     this.cells.forEach((cell) => {
-      if (cell.image) {
+      if (cell.image && (cell.isBody || !bodyOnly)) {
         if (cell.image.x < minX) {
           minX = cell.image.x;
         }

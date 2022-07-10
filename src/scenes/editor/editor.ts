@@ -68,7 +68,7 @@ export default class Editor extends Phaser.Scene {
       "rexOutlinePipeline"
     ) as OutlinePipelinePlugin;
 
-    this.organism.create(this.add, this.pipelineInstance);
+    this.organism.create(this.add);
 
     this.availableSpotGraphics = this.add.graphics();
     this.availableSpotGraphics.depth = 10;
@@ -226,6 +226,26 @@ export default class Editor extends Phaser.Scene {
       }
 
       if (hoveredCell?.image && clicked) {
+        if (this.highlightedCells.length > 1) {
+          const nearbyCells = hoveredCell
+            .getSurroundingCells()
+            .filter((cell) => !this.highlightedCells.includes(cell));
+
+          const removingFromCell = nearbyCells[0];
+
+          if (removingFromCell) {
+            hoveredCell.angleOffset =
+              Math.round(
+                pointDir(
+                  removingFromCell.offset.x,
+                  removingFromCell.offset.y,
+                  hoveredCell.offset.x,
+                  hoveredCell.offset.y
+                )
+              ) + 90;
+          }
+        }
+
         this.organism.removeCells(this.highlightedCells);
         editorState.mouseCells = this.highlightedCells;
         editorState.fromShop = false;
@@ -249,7 +269,7 @@ export default class Editor extends Phaser.Scene {
   }
 
   setCamera() {
-    const bounds = this.organism.getBounds();
+    const bounds = this.organism.getBounds(false, RADIUS * 3);
     this.offset = getCenter(bounds);
 
     this.targetZoom =
@@ -269,7 +289,11 @@ export default class Editor extends Phaser.Scene {
   }
 
   getHoveredCell(x: number, y: number): Cell | undefined {
-    for (const cell of this.organism.cells) {
+    const nonRootCells = this.organism.cells.filter(
+      (cell) => cell !== this.organism.brain
+    );
+
+    for (const cell of nonRootCells) {
       const dist = pointDist(
         cell.offset.x * SPACING,
         cell.offset.y * SPACING,
@@ -306,6 +330,7 @@ export default class Editor extends Phaser.Scene {
     editorState.mouseCells = [cell];
 
     this.availableSpots = this.getAvailableSpots();
+
     this.drawAvailableSpots();
     this.setCamera();
   }

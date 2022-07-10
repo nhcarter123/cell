@@ -24,7 +24,6 @@ type TCellOverrides = Partial<
     | "imageOffsetEditor"
     | "occupiedSpots"
     | "mustPlacePerpendicular"
-    | "hasBackground"
   >
 >;
 
@@ -61,7 +60,6 @@ export class Cell {
 
   public offset: Vector;
 
-  public readonly hasBackground: boolean;
   public readonly isBone: boolean;
   public readonly mustPlacePerpendicular: boolean;
   public readonly depth: number;
@@ -96,8 +94,6 @@ export class Cell {
       overrides.mustPlacePerpendicular !== undefined
         ? overrides.mustPlacePerpendicular
         : false;
-    this.hasBackground =
-      overrides.hasBackground !== undefined ? overrides.hasBackground : true;
     this.isBone = overrides.isBone !== undefined ? overrides.isBone : false;
     this.imageOffset =
       overrides.imageOffset !== undefined
@@ -128,12 +124,12 @@ export class Cell {
     org: Organism,
     add: Phaser.GameObjects.GameObjectFactory,
     matter?: Phaser.Physics.Matter.MatterPhysics,
-    angle = 20
+    startAngle = 0
   ) {
     this.organism = org;
 
     if (matter) {
-      this.obj = this.createBody(matter, org, angle);
+      this.obj = this.createBody(matter, org, startAngle);
       if (this.obj) {
         // @ts-ignore
         this.obj.cell = this;
@@ -142,8 +138,8 @@ export class Cell {
     }
 
     this.image = add.image(
-      this.offset.x * SPACING,
-      this.offset.y * SPACING,
+      org.centerOfMass.x + this.offset.x * SPACING,
+      org.centerOfMass.y + this.offset.y * SPACING,
       this.imageKey
     );
 
@@ -297,35 +293,35 @@ export class Cell {
       };
     }
 
-    if (this.upRightCell && this.upRightCell?.obj) {
+    if (this.upRightCell?.obj) {
       return {
         cell: this.upRightCell,
         angle: 300,
       };
     }
 
-    if (this.rightCell && this.rightCell?.obj) {
+    if (this.rightCell?.obj) {
       return {
         cell: this.rightCell,
         angle: 0,
       };
     }
 
-    if (this.downRightCell && this.downRightCell?.obj) {
+    if (this.downRightCell?.obj) {
       return {
         cell: this.downRightCell,
         angle: 60,
       };
     }
 
-    if (this.downLeftCell && this.downLeftCell?.obj) {
+    if (this.downLeftCell?.obj) {
       return {
         cell: this.downLeftCell,
         angle: 120,
       };
     }
 
-    if (this.leftCell && this.leftCell?.obj) {
+    if (this.leftCell?.obj) {
       return {
         cell: this.leftCell,
         angle: 180,
@@ -456,7 +452,9 @@ export class Cell {
         this.image.angle =
           this.obj.parent === this.obj
             ? RadToDeg(this.obj.angle) + this.physicsAngleOffset
-            : RadToDeg(this.obj.parent.angle) + this.angleOffset;
+            : RadToDeg(this.obj.parent.angle) +
+              this.angleOffset +
+              this.physicsAngleOffset;
       } else if (matter) {
         const neighbor = this.getFirstNeighborCell();
         if (neighbor?.cell.obj) {
