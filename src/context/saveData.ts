@@ -6,8 +6,8 @@ import { BrainCell } from "../objects/cells/brainCell";
 import { Organism } from "../objects/organism";
 import { SpikeCell } from "../objects/cells/spikeCell";
 import { BoneCell } from "../objects/cells/boneCell";
-import { getCenter } from "../helpers/math";
 import { CiliaCell } from "../objects/cells/ciliaCell";
+import { merge } from "lodash";
 
 export type TSavedCell = Pick<Cell, "offset" | "angleOffset">;
 type TSavedOrganism = Pick<Organism, "isPlayer">;
@@ -22,6 +22,7 @@ export interface ISavedCell extends TSavedCell {
 
 interface ISavedOrganism extends TSavedOrganism {
   cells: ISavedCell[];
+  color: string;
   x: number;
   y: number;
 }
@@ -34,25 +35,26 @@ interface ISaveData {
 
 const savedData = localStorage.getItem(ELocalStorageKey.saveData);
 
-export const saveData: ISaveData = savedData
-  ? (JSON.parse(savedData) as ISaveData)
-  : {
-      direction: 90,
-      organismHistory: [],
-      organism: {
-        isPlayer: true,
-        x: 0,
-        y: 0,
-        cells: [
-          {
-            type: ECellType.BrainCell,
-            angleOffset: 0,
-            offset: { x: 0, y: 0 },
-          },
-        ],
-        // cells: star,
-      },
-    };
+export const saveData: ISaveData = merge(
+  {
+    direction: 90,
+    organismHistory: [],
+    organism: {
+      isPlayer: true,
+      x: 0,
+      y: 0,
+      color: "#eab345",
+      cells: [
+        {
+          type: ECellType.BrainCell,
+          angleOffset: 0,
+          offset: { x: 0, y: 0 },
+        },
+      ],
+    },
+  },
+  JSON.parse(savedData || "") || {}
+);
 
 export const saveDataToLocalStorage = () => {
   localStorage.setItem(ELocalStorageKey.saveData, JSON.stringify(saveData));
@@ -123,6 +125,7 @@ export const loadOrganism = (savedOrganism: ISavedOrganism): Organism => {
     savedOrganism.isPlayer,
     savedOrganism.x,
     savedOrganism.y,
+    Phaser.Display.Color.ValueToColor(savedOrganism.color),
     savedOrganism.cells.map((cell) => createCellFromType(cell.type, cell))
   );
 };
@@ -132,6 +135,11 @@ export const saveOrganism = (organism: Organism): ISavedOrganism => {
     isPlayer: organism.isPlayer,
     x: organism.centerOfMass.x,
     y: organism.centerOfMass.y,
+    color: Phaser.Display.Color.RGBToString(
+      organism.color.red,
+      organism.color.green,
+      organism.color.blue
+    ),
     cells: organism.cells.map((cell) => ({
       type: getTypeFromCell(cell),
       offset: cell.offset,

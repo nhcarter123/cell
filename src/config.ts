@@ -96,9 +96,9 @@ class Config {
         // autoCenter: Phaser.Scale.CENTER_HORIZONTALLY,
       },
       render: {
-        antialias: false,
-        antialiasGL: false,
-        roundPixels: false,
+        // antialias: false,
+        // antialiasGL: false,
+        // roundPixels: false,
       },
       plugins: {
         global: [

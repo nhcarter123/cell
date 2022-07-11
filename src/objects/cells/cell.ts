@@ -452,9 +452,7 @@ export class Cell {
         this.image.angle =
           this.obj.parent === this.obj
             ? RadToDeg(this.obj.angle) + this.physicsAngleOffset
-            : RadToDeg(this.obj.parent.angle) +
-              this.angleOffset +
-              this.physicsAngleOffset;
+            : RadToDeg(this.obj.parent.angle) + this.angleOffset;
       } else if (matter) {
         const neighbor = this.getFirstNeighborCell();
         if (neighbor?.cell.obj) {

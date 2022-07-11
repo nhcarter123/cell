@@ -17,14 +17,7 @@ import { compact } from "lodash";
 import { Vector } from "matter";
 import Ocean from "../scenes/ocean";
 import RadToDeg = Phaser.Math.RadToDeg;
-import {
-  DAMPING,
-  PHYSICS_DEFAULTS,
-  RADIUS,
-  SPACING,
-  STIFFNESS,
-} from "../config";
-import OutlinePipelinePlugin from "phaser3-rex-plugins/plugins/outlinepipeline-plugin";
+import { DAMPING, PHYSICS_DEFAULTS, SPACING, STIFFNESS } from "../config";
 import { nanoid } from "nanoid";
 
 interface IBound {
@@ -43,11 +36,8 @@ export interface IAvailableSpot {
 }
 
 const MAX_SHADER_CELLS = 40;
-
-const SKIN_COLOR = Phaser.Display.Color.ValueToColor("#6c45ea");
-// const SKIN_RADIUS = 310;
 const SKIN_RADIUS = 30;
-const SKIN_ALPHA = 0.7;
+const SKIN_ALPHA = 0.5;
 
 const SKIN_OUTLINE_ALPHA = 1;
 const SKIN_THICKNESS = 4;
@@ -67,14 +57,22 @@ export class Organism {
   private skin?: Phaser.GameObjects.Image;
   private debug?: Phaser.GameObjects.Graphics;
   private skinResolution: number;
+  public color: Phaser.Display.Color;
 
-  constructor(isPlayer: boolean, x: number, y: number, cells: Cell[]) {
+  constructor(
+    isPlayer: boolean,
+    x: number,
+    y: number,
+    color: Phaser.Display.Color,
+    cells: Cell[]
+  ) {
     this.isPlayer = isPlayer;
     this.cells = cells;
     this.brain = cells.find((cell) => cell instanceof BrainCell);
     this.centerOfMass = { x, y };
     this.skinResolution = 0;
     this.targetDir = 0;
+    this.color = color;
     this.id = nanoid();
   }
 
@@ -119,9 +117,9 @@ export class Organism {
     );
     // .setRenderToTexture(`skin-${this.id}`);
     this.skinShader.setUniform("color.value", [
-      SKIN_COLOR.red / 255,
-      SKIN_COLOR.green / 255,
-      SKIN_COLOR.blue / 255,
+      this.color.red / 255,
+      this.color.green / 255,
+      this.color.blue / 255,
     ]);
     this.skinShader.setUniform("alpha.value", SKIN_ALPHA);
     this.skinShader.depth = matter ? 10 : -10;
@@ -135,9 +133,9 @@ export class Organism {
     );
 
     this.skinShader2.setUniform("color.value", [
-      SKIN_COLOR.red / 600,
-      SKIN_COLOR.green / 600,
-      SKIN_COLOR.blue / 600,
+      this.color.red / 600,
+      this.color.green / 600,
+      this.color.blue / 600,
     ]);
     this.skinShader2.setUniform("alpha.value", SKIN_OUTLINE_ALPHA);
     this.skinShader2.depth = -12;
@@ -438,7 +436,6 @@ export class Organism {
     let xTotal = 0;
     let yTotal = 0;
     let totalMass = 0;
-    let angTotal = 0;
     let totalCells = 0;
 
     for (const cell of this.cells) {
@@ -933,6 +930,7 @@ export class Organism {
 
   destroy(matter?: Phaser.Physics.Matter.MatterPhysics) {
     this.skinShader?.destroy();
+    this.skinShader2?.destroy();
     this.skin?.destroy();
     this.cells.forEach((cell) => cell.destroy(matter));
     this.cells = [];

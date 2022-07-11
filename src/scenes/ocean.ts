@@ -27,6 +27,7 @@ export default class Ocean extends Phaser.Scene {
   private backgroundShader?: Phaser.GameObjects.Shader;
   private leftButtonPressed: boolean;
   private targetZoom: number;
+  private nextClosestDist: number;
   private targetOffset: Vector;
   private player?: Organism;
 
@@ -50,6 +51,7 @@ export default class Ocean extends Phaser.Scene {
 
     this.organisms = [];
     this.leftButtonPressed = false;
+    this.nextClosestDist = 0;
     this.targetZoom = 1;
     this.targetOffset = { x: 0, y: 0 };
   }
@@ -147,10 +149,10 @@ export default class Ocean extends Phaser.Scene {
             )
           : 0;
 
-      const deletionDistance =
-        Math.max(config.screenWidth, config.screenHeight) + 1500;
-      const placementDistance =
-        Math.max(config.screenWidth, config.screenHeight) + 200;
+      const screenSize = Math.max(config.screenWidth, config.screenHeight) / 2;
+
+      const deletionDistance = screenSize + 1300;
+      const placementDistance = screenSize + 400;
 
       if (distanceToPlayer < deletionDistance) {
         if (this.input.activePointer.leftButtonDown() && org.isPlayer) {
@@ -190,7 +192,7 @@ export default class Ocean extends Phaser.Scene {
           };
 
           if (this.organisms.length < 10) {
-            const variance = (Math.random() - 0.5) * 1000;
+            const variance = (Math.random() - 0.5) * 1100;
 
             const dir = pointDir(
               0,
@@ -216,12 +218,19 @@ export default class Ocean extends Phaser.Scene {
               org.id
             );
 
-            if (result.closestDist > 1100) {
+            if (result.closestDist > 500 + this.nextClosestDist) {
+              this.nextClosestDist = Math.random() * 1800;
               console.log("spawned");
+
+              const rgb = `rgb(${Math.round(Math.random() * 255)},${Math.round(
+                Math.random() * 255
+              )},${Math.round(Math.random() * 255)})`;
+
               const newOrg = loadOrganism({
                 isPlayer: false,
                 x: spawnPos.x,
                 y: spawnPos.y,
+                color: rgb,
                 cells: this.getRandomOrganism(),
               });
               newOrg.create(this.add, this.matter, this, Math.random() * 360);

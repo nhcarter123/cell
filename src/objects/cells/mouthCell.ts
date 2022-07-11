@@ -22,6 +22,7 @@ export class MouthCell extends Cell {
       health: 8,
       imageKey: EImageKey.MouthCell,
       isBody: false,
+      isBone: true,
       mustPlacePerpendicular: true,
     });
 
@@ -75,9 +76,9 @@ export class MouthCell extends Cell {
         );
 
         if (this.currentAttackFrames - this.attackFrames > 0) {
-          matter.applyForce(this.obj, {
-            x: lengthDirX(0.008, dirToCell),
-            y: lengthDirY(0.008, dirToCell),
+          matter.applyForce(this.obj.parent, {
+            x: lengthDirX(0.015, dirToCell),
+            y: lengthDirY(0.015, dirToCell),
           });
         }
 
