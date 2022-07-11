@@ -11,8 +11,8 @@ export default class EditorBackground extends Phaser.Scene {
   create() {
     this.backgroundShader = this.add.shader(
       "ocean",
-      config.startingScreenWidth / 2,
-      config.startingScreenHeight / 2,
+      config.screenWidth / 2,
+      config.screenHeight / 2,
       config.screenWidth,
       config.screenHeight
     );

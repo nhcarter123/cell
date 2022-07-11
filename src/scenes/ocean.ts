@@ -83,6 +83,7 @@ export default class Ocean extends Phaser.Scene {
 
     if (this.player.brain?.image) {
       this.cameras.main.startFollow(this.player.brain.image, false, 0.03, 0.03);
+      // this.cameras.main.startFollow(this.player.brain.image, false);
       this.cameras.main.fadeIn(1000);
       // this.cameras.main.setPosition(100), 100;
     }
@@ -98,12 +99,12 @@ export default class Ocean extends Phaser.Scene {
         this.cameras.main.scrollX / BACKGROUND_DEPTH / config.resolutionScale,
         -this.cameras.main.scrollY / BACKGROUND_DEPTH / config.resolutionScale,
       ]);
+      this.backgroundShader.setOrigin(0.5, 0.5);
+      this.backgroundShader.setSize(config.screenWidth, config.screenHeight);
       this.backgroundShader.x =
         this.cameras.main.scrollX + config.screenWidth / 2;
       this.backgroundShader.y =
         this.cameras.main.scrollY + config.screenHeight / 2;
-      this.backgroundShader.width = config.screenWidth;
-      this.backgroundShader.height = config.screenHeight;
       this.backgroundShader.scale = 1 / this.cameras.main.zoom;
       // this.backgroundShader.setOrigin(0, 0);
     }

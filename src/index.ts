@@ -31,5 +31,4 @@ const game = new Phaser.Game({
 
 config.resize(game);
 
-window.addEventListener("load", () => config.resize(game));
 window.addEventListener("resize", () => config.resize(game));

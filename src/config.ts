@@ -29,8 +29,6 @@ const BASE_SCALE = 1;
 class Config {
   public screenWidth: number;
   public screenHeight: number;
-  public startingScreenWidth: number;
-  public startingScreenHeight: number;
   public editorWidth: number;
   public scale: number;
   public resolutionScale: number;
@@ -41,8 +39,6 @@ class Config {
     this.editorWidth = 0;
     this.scale = 0;
     this.resolutionScale = 1;
-    this.startingScreenWidth = 0;
-    this.startingScreenHeight = 0;
   }
 
   resize(game: Phaser.Game) {
@@ -58,21 +54,14 @@ class Config {
     // this.previousWidth = window.innerWidth;
     // this.previousHeight = window.innerHeight;
 
+    const width = window.innerWidth;
+    const height =
+      window.innerWidth / window.innerHeight < 1 ? width : window.innerHeight;
     // const minSize = Math.min(window.innerWidth, window.innerHeight);
 
-    const widthDiff = (MIN_WIDTH - window.innerWidth) / MIN_WIDTH;
-    const heightDiff = (MIN_HEIGHT - window.innerHeight) / MIN_HEIGHT;
-
-    if (widthDiff > 0 || heightDiff > 0) {
-      if (widthDiff > heightDiff) {
-        this.scale =
-          (BASE_SCALE - (MIN_WIDTH - window.innerWidth) / MIN_WIDTH) *
-          this.resolutionScale;
-      } else {
-        this.scale =
-          (BASE_SCALE - (MIN_HEIGHT - window.innerHeight) / MIN_HEIGHT) *
-          this.resolutionScale;
-      }
+    if (width < MIN_WIDTH) {
+      this.scale =
+        (BASE_SCALE - (MIN_WIDTH - width) / MIN_WIDTH) * this.resolutionScale;
     } else {
       this.scale = BASE_SCALE * this.resolutionScale;
     }
@@ -87,17 +76,10 @@ class Config {
     //   this.scale = BASE_SCALE;
     // }
 
-    this.screenWidth = window.innerWidth / this.scale;
-    this.screenHeight = window.innerHeight / this.scale;
+    this.screenWidth = width / this.scale;
+    this.screenHeight = height / this.scale;
     this.editorWidth = 400 / this.resolutionScale;
 
-    if (this.startingScreenWidth === 0) {
-      this.startingScreenWidth = this.screenWidth;
-      this.startingScreenHeight = this.screenHeight;
-    }
-
-    console.log(this.screenWidth);
-    console.log(this.screenHeight);
     game.scale.resize(this.screenWidth, this.screenHeight);
     // game.scale.setGameSize(window.innerWidth, window.innerHeight);
     game.scale.setZoom(this.scale);
