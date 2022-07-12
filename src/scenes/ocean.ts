@@ -14,6 +14,7 @@ import star from "../savedOrganisms/star";
 import config from "../config";
 import { Vector } from "matter";
 import org1 from "../savedOrganisms/org1";
+import org2 from "../savedOrganisms/org2";
 
 interface IFindResult<T> {
   closestDist: number;
@@ -38,6 +39,9 @@ export default class Ocean extends Phaser.Scene {
         default: "matter",
         matter: {
           // enableSleeping: true,
+          // constraintIterations: 1,
+          // velocityIterations: 2,
+          // positionIterations: 2,
           gravity: {
             y: 0,
           },
@@ -155,15 +159,19 @@ export default class Ocean extends Phaser.Scene {
       const placementDistance = screenSize + 400;
 
       if (distanceToPlayer < deletionDistance) {
-        if (this.input.activePointer.leftButtonDown() && org.isPlayer) {
-          org.targetDir = pointDir(
-            org.centerOfMass.x,
-            org.centerOfMass.y,
-            mouseX,
-            mouseY
-          );
+        if (org.isPlayer) {
+          if (this.input.activePointer.leftButtonDown()) {
+            org.targetDir = pointDir(
+              org.centerOfMass.x,
+              org.centerOfMass.y,
+              mouseX,
+              mouseY
+            );
 
-          org.moveTowards(this.matter);
+            org.moveTowards(this.matter, 1, time);
+          }
+        } else {
+          org.moveTowards(this.matter, 0.3, time);
         }
 
         org.calcCenterOfMass();
@@ -339,7 +347,7 @@ export default class Ocean extends Phaser.Scene {
   }
 
   getRandomOrganism(): ISavedCell[] {
-    const orgs = [star, org1];
+    const orgs = [star, org1, org2];
     const org = orgs[Math.floor(Math.random() * orgs.length)];
 
     return org ? org : [];

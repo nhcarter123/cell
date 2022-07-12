@@ -12,6 +12,7 @@ import {
   pointDist,
   pointsEqual,
   rotateVector,
+  subtractVectors,
 } from "../helpers/math";
 import { compact } from "lodash";
 import { Vector } from "matter";
@@ -36,11 +37,11 @@ export interface IAvailableSpot {
 }
 
 const MAX_SHADER_CELLS = 40;
-const SKIN_RADIUS = 30;
-const SKIN_ALPHA = 0.5;
+const SKIN_RADIUS = 29;
+const SKIN_ALPHA = 0.4;
 
-const SKIN_OUTLINE_ALPHA = 1;
-const SKIN_THICKNESS = 4;
+const SKIN_OUTLINE_ALPHA = 0.7;
+const SKIN_THICKNESS = 7;
 
 const padding = SKIN_RADIUS + 10;
 
@@ -53,11 +54,15 @@ export class Organism {
   public ocean?: Ocean;
   public targetDir: number;
   private skinShader?: Phaser.GameObjects.Shader;
-  private skinShader2?: Phaser.GameObjects.Shader;
+  private skinOutlineShader?: Phaser.GameObjects.Shader;
   private skin?: Phaser.GameObjects.Image;
   private debug?: Phaser.GameObjects.Graphics;
   private skinResolution: number;
   public color: Phaser.Display.Color;
+  public dirtyBones: string[];
+
+  // stats
+  public speed: number;
 
   constructor(
     isPlayer: boolean,
@@ -73,7 +78,9 @@ export class Organism {
     this.skinResolution = 0;
     this.targetDir = 0;
     this.color = color;
+    this.speed = 1;
     this.id = nanoid();
+    this.dirtyBones = [];
   }
 
   create(
@@ -83,11 +90,12 @@ export class Organism {
     startAngle = 0
   ) {
     this.ocean = ocean;
+    this.targetDir = startAngle;
 
-    // if (this.isPlayer) {
-    //   this.debug = add.graphics();
-    //   this.debug.depth = 100;
-    // }
+    if (this.isPlayer) {
+      this.debug = add.graphics();
+      this.debug.depth = 100;
+    }
 
     // this.skinShader.depth = matter ? 10 : -10;
     // this.skinShader.depth = -10;
@@ -101,11 +109,13 @@ export class Organism {
     // this.skinShader.setUniform("resolution.value.y", 50);
 
     // this.skinTexture = add.image(0, 0, "skinTexture");
-    this.cells.forEach((cell) => cell.create(this, add, matter, startAngle));
+    this.cells.forEach((cell) =>
+      cell.create(this, add, this.color, matter, startAngle)
+    );
 
     this.syncCells(matter);
 
-    // todo this can possiby be optimized
+    // todo this can possibly be optimized
     this.skinResolution = getMaxDiff(this.getBounds(true, padding));
 
     this.skinShader = add.shader(
@@ -115,7 +125,6 @@ export class Organism {
       this.skinResolution,
       this.skinResolution
     );
-    // .setRenderToTexture(`skin-${this.id}`);
     this.skinShader.setUniform("color.value", [
       this.color.red / 255,
       this.color.green / 255,
@@ -124,7 +133,7 @@ export class Organism {
     this.skinShader.setUniform("alpha.value", SKIN_ALPHA);
     this.skinShader.depth = matter ? 10 : -10;
 
-    this.skinShader2 = add.shader(
+    this.skinOutlineShader = add.shader(
       "skin",
       0,
       0,
@@ -132,13 +141,13 @@ export class Organism {
       this.skinResolution
     );
 
-    this.skinShader2.setUniform("color.value", [
-      this.color.red / 600,
-      this.color.green / 600,
-      this.color.blue / 600,
+    this.skinOutlineShader.setUniform("color.value", [
+      this.color.red / 650,
+      this.color.green / 650,
+      this.color.blue / 650,
     ]);
-    this.skinShader2.setUniform("alpha.value", SKIN_OUTLINE_ALPHA);
-    this.skinShader2.depth = -12;
+    this.skinOutlineShader.setUniform("alpha.value", SKIN_OUTLINE_ALPHA);
+    this.skinOutlineShader.depth = -12;
 
     // this.skin = add.image(0, 0, `skin-${this.id}`);
     // this.skin.depth = matter ? 10 : -10;
@@ -168,14 +177,14 @@ export class Organism {
     const cellOffsets = [];
 
     // console.log(center.x / maxDiff);
+    const filteredCells = this.cells.filter(
+      (cell) => cell?.isBody && cell.health > cell.maxHealth * 0.75
+    );
 
     for (let i = 0; i < MAX_SHADER_CELLS; i++) {
-      const cell = this.cells[i];
-      if (cell?.isBody && cell.image && cell.health === cell.maxHealth) {
-        // if (matter && cell.obj) {
-        //   cellOffsets.push(cell.obj.position.x / scale + 0.5);
-        //   cellOffsets.push(cell.obj.position.y) / scale + 0.5;
-        // } else if (cell.image) {
+      const cell = filteredCells[i];
+
+      if (cell?.image) {
         cellOffsets.push((cell.image.x - center.x) / scale + 0.5);
         cellOffsets.push((-cell.image.y + center.y) / scale + 0.5);
         // }
@@ -185,7 +194,7 @@ export class Organism {
       }
     }
 
-    if (this.skinShader && this.skinShader2) {
+    if (this.skinShader && this.skinOutlineShader) {
       this.skinShader.setUniform("cells.value", cellOffsets);
       this.skinShader.setUniform("radius.value", radius);
       this.skinShader.x = center.x;
@@ -194,13 +203,13 @@ export class Organism {
       // // console.log(this.skinShader.uniforms);
       this.skinShader.scale = scale / this.skinResolution;
 
-      this.skinShader2.setUniform("cells.value", cellOffsets);
-      this.skinShader2.setUniform("radius.value", outlineRadius);
-      this.skinShader2.x = center.x;
-      this.skinShader2.y = center.y;
+      this.skinOutlineShader.setUniform("cells.value", cellOffsets);
+      this.skinOutlineShader.setUniform("radius.value", outlineRadius);
+      this.skinOutlineShader.x = center.x;
+      this.skinOutlineShader.y = center.y;
       //
       // // console.log(this.skinShader.uniforms);
-      this.skinShader2.scale = scale / this.skinResolution;
+      this.skinOutlineShader.scale = scale / this.skinResolution;
     }
 
     // const cellOffsets = matter
@@ -248,17 +257,41 @@ export class Organism {
     // }
   }
 
+  removeBones(matter: Phaser.Physics.Matter.MatterPhysics, cell: Cell) {
+    if (cell.obj && this.dirtyBones.includes(cell.boneId || "")) {
+      cell.boneId = undefined;
+      matter.world.removeConstraint(cell.links.map((link) => link.link));
+      matter.world.remove(cell.obj.parent);
+      cell.links = [];
+    }
+  }
+
   createBones(matter: Phaser.Physics.Matter.MatterPhysics, cell: Cell) {
-    if (cell.isBone && cell.obj?.parent === cell.obj) {
+    if (cell.isBone && !cell.boneId && cell.obj) {
       const boneCells = this.aggregateBone(cell);
 
-      if (boneCells.length > 1) {
-        const startAngle = this.brain?.obj?.angle || 0;
+      const startAngle = cell.obj.parent.angle;
 
+      const offset = rotateVector(
+        { x: 0, y: 0 },
+        { x: cell.offset.x * SPACING, y: cell.offset.y * SPACING },
+        RadToDeg(startAngle)
+      );
+
+      const startPosition = subtractVectors(cell.obj.position, offset);
+      const boneId = nanoid();
+
+      if (boneCells.length > 1) {
         const parts = compact(
           boneCells.map((c) => {
+            c.boneId = boneId;
             c.obj && matter.world.remove(c.obj);
-            c.obj = c.createBody(matter, this, RadToDeg(startAngle));
+            c.obj = c.createBody(
+              matter,
+              this,
+              startPosition,
+              RadToDeg(startAngle)
+            );
             // @ts-ignore
             c.obj.cell = c;
 
@@ -266,6 +299,7 @@ export class Organism {
           })
         );
 
+        // todo replace with concave polygon
         const compound = matter.body.create({
           parts,
           ...PHYSICS_DEFAULTS,
@@ -273,14 +307,35 @@ export class Organism {
         });
 
         matter.world.add(compound);
+      } else {
+        cell.boneId = boneId;
+        matter.world.remove(cell.obj);
+
+        const startAngle = RadToDeg(cell.obj.parent.angle) - 90;
+
+        const offset = rotateVector(
+          { x: 0, y: 0 },
+          { x: cell.offset.x * SPACING, y: cell.offset.y * SPACING },
+          startAngle
+        );
+
+        const startPosition = subtractVectors(cell.obj.position, offset);
+
+        cell.obj = cell.createBody(matter, this, startPosition, startAngle);
+        if (cell.obj) {
+          // @ts-ignore
+          cell.obj.cell = cell;
+          matter.world.add(cell.obj);
+        }
       }
     }
   }
+
   syncLinks(matter: Phaser.Physics.Matter.MatterPhysics, cell: Cell) {
     if (cell.obj) {
       cell.links = compact(
         cell.links.map((l) => {
-          if (l.cell.obj && l.cell.health > 0 && cell.health > 0) {
+          if (l.cell.obj && l.cell.health > 0) {
             return l;
           }
 
@@ -288,19 +343,19 @@ export class Organism {
         })
       );
 
-      if (cell.health > 0) {
-        const linkableCells = cell.getLinkableCells();
+      const linkableCells = cell.getLinkableCells();
 
-        linkableCells.forEach((c) => {
-          if (c.health > 0) {
-            if (c.obj?.parent !== c.obj && cell.obj?.parent !== cell.obj) {
-              //
-            } else {
-              this.createLink(matter, cell, c);
-            }
-          }
-        });
-      }
+      linkableCells.forEach((c) => {
+        // if (c.obj?.parent !== c.obj && cell.obj?.parent !== cell.obj) {
+        if (
+          (c.isBone && cell.isBone) ||
+          cell.links.some((link) => link.cell === c)
+        ) {
+          //
+        } else {
+          this.createLink(matter, cell, c);
+        }
+      });
     }
   }
 
@@ -352,7 +407,7 @@ export class Organism {
         c1.obj.parent,
         c2.obj.parent,
         SPACING,
-        STIFFNESS,
+        c1.isDangly(c2) ? STIFFNESS * 3 : STIFFNESS,
         {
           damping: DAMPING,
           pointA: {
@@ -471,7 +526,7 @@ export class Organism {
           // saveData.direction +
           // 90
 
-          cell.obj.torque -= 0.001 * diff + cell.obj.angularVelocity / 3;
+          cell.obj.torque -= 0.002 * diff + cell.obj.angularVelocity * 0.25;
 
           // const diff = angleDiff(
           //   RadToDeg(cell.obj.angle) -
@@ -534,7 +589,11 @@ export class Organism {
   //   }
   // }
 
-  moveTowards(matter: Phaser.Physics.Matter.MatterPhysics) {
+  moveTowards(
+    matter: Phaser.Physics.Matter.MatterPhysics,
+    speedMod: number,
+    time: number
+  ) {
     // if (this.brain) {
     //   const movementCells = [this.brain, ...this.brain.getSurroundingCells()];
 
@@ -605,38 +664,27 @@ export class Organism {
           // const diff = angleDiff(angleFromCenterToCell, this.targetDir + 180);
 
           const forcePos = {
-            x:
-              cell.obj.position.x +
-              lengthDirX(Math.max(distToCenter, 80), angleFromCenterToCell),
-            y:
-              cell.obj.position.y +
-              lengthDirY(Math.max(distToCenter, 80), angleFromCenterToCell),
+            x: cell.obj.position.x + lengthDirX(100, angleFromCenterToCell),
+            y: cell.obj.position.y + lengthDirY(100, angleFromCenterToCell),
           };
 
-          const intensity =
-            (-0.000001 *
+          const turnFactor =
+            (-0.0000001 *
               Math.min(Math.pow(diffToTarget, 2), 2500) *
               Math.sign(diffToTarget)) /
-            (distToBrain + 12);
+              (distToBrain + 2) +
+            Math.sin(time / 200) * 0.000016;
+
+          const ang = angleFromCenterToCell + 90;
 
           const force = {
-            x: lengthDirX(intensity, angleFromCenterToCell + 90),
-            y: lengthDirY(intensity, angleFromCenterToCell + 90),
+            x: lengthDirX(turnFactor, ang),
+            y: lengthDirY(turnFactor, ang),
           };
 
           // const drawForce = {
-          //   x: lengthDirX(
-          //     -0.05 *
-          //       Math.min(Math.pow(diffToTarget, 2), 2500) *
-          //       Math.sign(diffToTarget),
-          //     angleFromCenterToCell + 90
-          //   ),
-          //   y: lengthDirY(
-          //     -0.05 *
-          //       Math.min(Math.pow(diffToTarget, 2), 2500) *
-          //       Math.sign(diffToTarget),
-          //     angleFromCenterToCell + 90
-          //   ),
+          //   x: lengthDirX(1000000 * turnFactor, ang),
+          //   y: lengthDirY(1000000 * turnFactor, ang),
           // };
 
           // if (this.debug) {
@@ -653,7 +701,10 @@ export class Organism {
 
           // const turnFactor = 0.0000008 * Math.min(diff, 100);
           const moveFactor =
-            (0.00000405 * (180 - Math.min(Math.abs(diffToTarget), 80))) /
+            (this.speed *
+              speedMod *
+              0.0000028 *
+              (180 - Math.min(Math.abs(diffToTarget), 80))) /
             (distToBrain + 3);
 
           // const turnFactor = 0.0001;
@@ -757,7 +808,7 @@ export class Organism {
     return boneCells;
   }
 
-  setisConnected(cellToRemove?: Cell) {
+  setIsConnected(cellToRemove?: Cell) {
     const cellsToCheck = compact([
       (this.brain?.health || 0) > 0 ? this.brain : undefined,
     ]);
@@ -782,6 +833,8 @@ export class Organism {
   }
 
   syncCells(matter?: Phaser.Physics.Matter.MatterPhysics) {
+    this.speed = 0;
+
     if (matter) {
       this.cells = compact(
         this.cells.map((cell) => {
@@ -792,14 +845,23 @@ export class Organism {
           }
         })
       );
-
-      this.cells.forEach((cell) => this.createBones(matter, cell));
-      this.cells.forEach((cell) => this.syncLinks(matter, cell));
     }
 
-    this.cells.forEach((cell) => cell.setChildrenCells());
+    this.cells.forEach((cell) => {
+      this.speed += cell.speed;
+      cell.setChildrenCells();
+    });
 
-    this.setisConnected();
+    this.setIsConnected();
+
+    if (matter) {
+      this.cells.forEach((cell) => this.removeBones(matter, cell));
+      this.cells.forEach((cell) => this.createBones(matter, cell));
+      this.cells.forEach((cell) => this.syncLinks(matter, cell));
+      this.dirtyBones = [];
+    }
+
+    this.speed = this.speed / this.cells.length - this.cells.length / 50;
   }
 
   overlapsWith(
@@ -930,7 +992,7 @@ export class Organism {
 
   destroy(matter?: Phaser.Physics.Matter.MatterPhysics) {
     this.skinShader?.destroy();
-    this.skinShader2?.destroy();
+    this.skinOutlineShader?.destroy();
     this.skin?.destroy();
     this.cells.forEach((cell) => cell.destroy(matter));
     this.cells = [];

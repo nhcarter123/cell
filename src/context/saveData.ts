@@ -53,7 +53,7 @@ export const saveData: ISaveData = merge(
       ],
     },
   },
-  JSON.parse(savedData || "") || {}
+  JSON.parse(savedData || "{}") || {}
 );
 
 export const saveDataToLocalStorage = () => {

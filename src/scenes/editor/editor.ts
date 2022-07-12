@@ -162,7 +162,7 @@ export default class Editor extends Phaser.Scene {
       this.heldCellDuration += 1;
       const inEditor = this.input.activePointer.x < config.editorWidth;
 
-      if (clicked && inEditor && this.heldCellDuration > 60) {
+      if (clicked && inEditor && this.heldCellDuration > 10) {
         this.sellCell();
       } else {
         const hoveredSpot = this.getHoveredSpot(mousePos.x, mousePos.y);
@@ -211,7 +211,7 @@ export default class Editor extends Phaser.Scene {
     } else {
       if (hoveredCell !== this.hoveredCell) {
         if (hoveredCell) {
-          this.organism.setisConnected(hoveredCell);
+          this.organism.setIsConnected(hoveredCell);
 
           this.highlightCells(
             compact(
@@ -325,8 +325,16 @@ export default class Editor extends Phaser.Scene {
   addBuyingCell() {
     editorState.angle = 0;
 
+    const offset = this.getMousePos();
     const cell = createCellFromType(editorState.type, {});
-    cell.create(this.organism, this.add);
+    cell.create(
+      this.organism,
+      this.add,
+      this.organism.color,
+      undefined,
+      0,
+      offset
+    );
     editorState.mouseCells = [cell];
 
     this.availableSpots = this.getAvailableSpots();

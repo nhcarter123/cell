@@ -9,10 +9,11 @@ export class BoneCell extends Cell {
       offset,
       angleOffset,
       mass: MASS,
-      health: 10,
+      health: 8,
       imageKey: EImageKey.BoneCell,
       isBody: true,
       isBone: true,
+      speed: 0.5,
     });
   }
 }

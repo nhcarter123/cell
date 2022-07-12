@@ -24,6 +24,8 @@ type TCellOverrides = Partial<
     | "imageOffsetEditor"
     | "occupiedSpots"
     | "mustPlacePerpendicular"
+    | "usesTint"
+    | "speed"
   >
 >;
 
@@ -60,6 +62,8 @@ export class Cell {
 
   public offset: Vector;
 
+  public readonly speed: number;
+  public readonly usesTint: boolean;
   public readonly isBone: boolean;
   public readonly mustPlacePerpendicular: boolean;
   public readonly depth: number;
@@ -73,16 +77,20 @@ export class Cell {
   public health: number;
   public maxHealth: number;
   public previousHealth: number;
-  public showHealthBar: number;
+  public cannotHealDuration: number;
   public occupiedSpots: Vector[];
 
   public isConnected: boolean;
   public beenScanned: boolean;
+  public boneId?: string;
   public imageKey: EImageKey;
+
+  private healthBarAlpha: number;
 
   constructor(overrides: TCellOverrides) {
     this.depth = overrides.depth !== undefined ? overrides.depth : 0;
     this.mass = overrides.mass !== undefined ? overrides.mass : 1;
+    this.speed = overrides.speed !== undefined ? overrides.speed : 1;
     this.offset =
       overrides.offset !== undefined ? overrides.offset : { x: 0, y: 0 };
     this.occupiedSpots =
@@ -95,6 +103,8 @@ export class Cell {
         ? overrides.mustPlacePerpendicular
         : false;
     this.isBone = overrides.isBone !== undefined ? overrides.isBone : false;
+    this.usesTint =
+      overrides.usesTint !== undefined ? overrides.usesTint : false;
     this.imageOffset =
       overrides.imageOffset !== undefined
         ? overrides.imageOffset
@@ -108,13 +118,14 @@ export class Cell {
     this.imageKey =
       overrides.imageKey !== undefined ? overrides.imageKey : EImageKey.FatCell;
     this.health = overrides.health !== undefined ? overrides.health : 1;
-    this.maxHealth = this.maxHealth = this.health; // potentially add this as an override
+    this.maxHealth = this.health; // potentially add this as an override
 
     this.previousHealth = this.health;
-    this.showHealthBar = 0;
+    this.cannotHealDuration = 0;
     this.physicsAngleOffset = 0;
+    this.healthBarAlpha = 0;
 
-    this.isConnected = false;
+    this.isConnected = true;
     this.beenScanned = false;
 
     this.links = [];
@@ -123,13 +134,15 @@ export class Cell {
   create(
     org: Organism,
     add: Phaser.GameObjects.GameObjectFactory,
+    color: Phaser.Display.Color,
     matter?: Phaser.Physics.Matter.MatterPhysics,
-    startAngle = 0
+    startAngle = 0,
+    positionOverride?: Vector
   ) {
     this.organism = org;
 
     if (matter) {
-      this.obj = this.createBody(matter, org, startAngle);
+      this.obj = this.createBody(matter, org, org.centerOfMass, startAngle);
       if (this.obj) {
         // @ts-ignore
         this.obj.cell = this;
@@ -138,10 +151,20 @@ export class Cell {
     }
 
     this.image = add.image(
-      org.centerOfMass.x + this.offset.x * SPACING,
-      org.centerOfMass.y + this.offset.y * SPACING,
+      positionOverride === undefined
+        ? org.centerOfMass.x + this.offset.x * SPACING
+        : positionOverride.x,
+      positionOverride === undefined
+        ? org.centerOfMass.y + this.offset.y * SPACING
+        : positionOverride.y,
       this.imageKey
     );
+    // .setInteractive()
+    // .on("pointerdown", () => (this.health = 0));
+
+    if (this.usesTint) {
+      this.image.setTint(color.color);
+    }
 
     this.setImage(matter);
 
@@ -164,7 +187,9 @@ export class Cell {
   createBody(
     matter: Phaser.Physics.Matter.MatterPhysics,
     org: Organism,
-    angle: number
+    startPosition: Vector,
+    angle: number,
+    onCollideActiveCallback?: Function
   ): BodyType | undefined {
     // this.obj = matter.add.circle(
     //   org.centerOfMass.x + this.offsetX * SPACING,
@@ -184,14 +209,15 @@ export class Cell {
     this.physicsAngleOffset = this.angleOffset;
 
     return matter.bodies.polygon(
-      org.centerOfMass.x + offset.x,
-      org.centerOfMass.y + offset.y,
+      startPosition.x + offset.x,
+      startPosition.y + offset.y,
       6,
       RADIUS,
       {
         ...PHYSICS_DEFAULTS,
         mass: this.mass,
         angle: DegToRad(angle),
+        onCollideActiveCallback,
       }
     );
   }
@@ -331,28 +357,36 @@ export class Cell {
 
   update(attacking: boolean, matter?: Phaser.Physics.Matter.MatterPhysics) {
     if (!this.isConnected && matter) {
-      this.health -= 0.0025;
+      this.health -= 0.005;
     }
 
     this.setImage(matter);
 
-    // show health bar when life changes
-    if (this.health !== this.previousHealth) {
-      this.showHealthBar = 600;
+    if (this.health < this.maxHealth) {
+      this.healthBarAlpha = 90;
+    } else {
+      this.healthBarAlpha -= 1;
     }
 
-    if (this.showHealthBar > 0) {
-      this.showHealthBar -= 1;
+    if (this.healthBarAlpha && this.healthBar && this.obj) {
+      this.healthBar.draw(
+        this.obj.position.x,
+        this.obj.position.y,
+        this.health,
+        this.maxHealth,
+        this.healthBarAlpha / 90
+      );
+    }
 
-      if (this.healthBar && this.obj) {
-        this.healthBar.draw(
-          this.obj.position.x,
-          this.obj.position.y,
-          this.health,
-          this.maxHealth,
-          this.showHealthBar / 90
-        );
-      }
+    // prevent healing when damaged
+    if (this.health !== this.previousHealth) {
+      this.cannotHealDuration = 1200;
+    }
+
+    if (this.cannotHealDuration > 0) {
+      this.cannotHealDuration -= 1;
+    } else if (this.isConnected) {
+      this.health += Math.min(this.maxHealth - this.health, 0.006);
     }
 
     if (this.health <= 0 && this.previousHealth > 0) {
@@ -364,16 +398,11 @@ export class Cell {
 
   destroy(matter?: Phaser.Physics.Matter.MatterPhysics) {
     if (matter && this.obj) {
-      if (this.obj.parent !== this.obj) {
-        this.obj.parent.parts = this.obj.parent.parts.filter(
-          (part) => part !== this.obj
-        );
-        if (this.obj.parent.parts.length === 1) {
-          matter.world.remove(this.obj.parent);
-        }
-      }
+      matter.world.remove(this.obj.parent);
 
-      matter.world.remove(this.obj);
+      if (this.boneId && this.organism) {
+        this.organism.dirtyBones.push(this.boneId);
+      }
     }
     this.image?.destroy();
     this.healthBar?.destroy();
@@ -392,7 +421,6 @@ export class Cell {
       (c) =>
         floatEquals(this.offset.x - 1, c.offset.x) &&
         floatEquals(this.offset.y, c.offset.y) &&
-        c.health > 0 &&
         this.checkPerpendicular(90) &&
         c.checkPerpendicular(270)
     );
@@ -401,7 +429,6 @@ export class Cell {
       (c) =>
         floatEquals(this.offset.x - 0.5, c.offset.x) &&
         floatEquals(this.offset.y - RAD_3_OVER_2, c.offset.y) &&
-        c.health > 0 &&
         this.checkPerpendicular(150) &&
         c.checkPerpendicular(330)
     );
@@ -410,7 +437,6 @@ export class Cell {
       (c) =>
         floatEquals(this.offset.x + 0.5, c.offset.x) &&
         floatEquals(this.offset.y - RAD_3_OVER_2, c.offset.y) &&
-        c.health > 0 &&
         this.checkPerpendicular(210) &&
         c.checkPerpendicular(30)
     );
@@ -419,7 +445,6 @@ export class Cell {
       (c) =>
         floatEquals(this.offset.x + 1, c.offset.x) &&
         floatEquals(this.offset.y, c.offset.y) &&
-        c.health > 0 &&
         this.checkPerpendicular(270) &&
         c.checkPerpendicular(90)
     );
@@ -428,7 +453,6 @@ export class Cell {
       (c) =>
         floatEquals(this.offset.x + 0.5, c.offset.x) &&
         floatEquals(this.offset.y + RAD_3_OVER_2, c.offset.y) &&
-        c.health > 0 &&
         this.checkPerpendicular(330) &&
         c.checkPerpendicular(150)
     );
@@ -437,7 +461,6 @@ export class Cell {
       (c) =>
         floatEquals(this.offset.x - 0.5, c.offset.x) &&
         floatEquals(this.offset.y + RAD_3_OVER_2, c.offset.y) &&
-        c.health > 0 &&
         this.checkPerpendicular(30) &&
         c.checkPerpendicular(210)
     );
@@ -460,6 +483,8 @@ export class Cell {
           this.image.y = neighbor.cell.obj.position.y;
           this.image.angle =
             RadToDeg(neighbor.cell.obj.parent.angle) + this.angleOffset;
+          this.image.alpha =
+            neighbor.cell.health > neighbor.cell.maxHealth * 0.75 ? 1 : 0;
         }
       } else {
         this.image.angle = this.angleOffset;

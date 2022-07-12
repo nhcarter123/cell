@@ -3,6 +3,8 @@ import { lengthDirX, lengthDirY, pointDir } from "../../helpers/math";
 import { TSavedCell } from "../../context/saveData";
 import { MASS, RADIUS } from "../../config";
 import { EImageKey } from "../../scenes/load";
+import { Organism } from "../organism";
+import { BodyType, Vector } from "matter";
 
 export class MouthCell extends Cell {
   private currentAttackCoolDown: number;
@@ -11,7 +13,8 @@ export class MouthCell extends Cell {
   private readonly impulseFrames: number;
   private readonly attackFrames: number;
   private target?: Cell;
-  private hitEnemies: Cell[];
+  // private hitEnemies: Cell[];
+  private hitEnemy: boolean;
   private readonly damage: number;
 
   constructor({ offset, angleOffset }: Partial<TSavedCell>) {
@@ -22,7 +25,6 @@ export class MouthCell extends Cell {
       health: 8,
       imageKey: EImageKey.MouthCell,
       isBody: false,
-      isBone: true,
       mustPlacePerpendicular: true,
     });
 
@@ -32,8 +34,9 @@ export class MouthCell extends Cell {
     this.attackCoolDown = 180;
     this.impulseFrames = 5;
     this.attackFrames = 16;
-    this.damage = 3;
-    this.hitEnemies = [];
+    this.damage = 2;
+    // this.hitEnemies = [];
+    this.hitEnemy = false;
   }
 
   update(attacking: boolean, matter?: Phaser.Physics.Matter.MatterPhysics) {
@@ -52,7 +55,8 @@ export class MouthCell extends Cell {
             this.currentAttackCoolDown =
               this.attackCoolDown + this.attackFrames;
             this.currentAttackFrames = this.attackFrames + this.impulseFrames;
-            this.hitEnemies = [];
+            // this.hitEnemies = [];
+            this.hitEnemy = false;
             this.target = findResult.closest;
           }
         }
@@ -77,8 +81,8 @@ export class MouthCell extends Cell {
 
         if (this.currentAttackFrames - this.attackFrames > 0) {
           matter.applyForce(this.obj.parent, {
-            x: lengthDirX(0.015, dirToCell),
-            y: lengthDirY(0.015, dirToCell),
+            x: lengthDirX(0.011, dirToCell),
+            y: lengthDirY(0.011, dirToCell),
           });
         }
 
@@ -89,21 +93,61 @@ export class MouthCell extends Cell {
         //   this.target.obj.position.y
         // );
 
-        const hitCells = this.organism?.ocean?.findCellsWithinRadius(
-          this.obj.position.x,
-          this.obj.position.y,
-          RADIUS * 2 + 5,
-          this.organism?.isPlayer
-        );
+        // const hitCells = this.organism?.ocean?.findCellsWithinRadius(
+        //   this.obj.position.x,
+        //   this.obj.position.y,
+        //   RADIUS * 2 + 5,
+        //   this.organism?.isPlayer
+        // );
 
-        hitCells &&
-          hitCells.forEach((cell) => {
-            if (!this.hitEnemies.includes(cell)) {
-              cell.health -= this.damage;
-              this.hitEnemies.push(cell);
-            }
-          });
+        // hitCells &&
+        //   hitCells.forEach((cell) => {
+        //     if (!this.hitEnemies.includes(cell)) {
+        //       cell.health -= this.damage;
+        //       this.hitEnemies.push(cell);
+        //     }
+        //   });
       }
     }
+  }
+
+  createBody(
+    matter: Phaser.Physics.Matter.MatterPhysics,
+    org: Organism,
+    startPosition: Vector,
+    angle: number
+  ): BodyType | undefined {
+    return super.createBody(
+      matter,
+      org,
+      org.centerOfMass,
+      angle,
+      ({ bodyA, bodyB }: Phaser.Types.Physics.Matter.MatterCollisionData) => {
+        if (this.currentAttackFrames > 0) {
+          const enemyCell: Cell | undefined =
+            // @ts-ignore
+            bodyB.cell?.organism?.isPlayer !== this.organism?.isPlayer
+              ? // @ts-ignore
+                bodyB.cell
+              : // @ts-ignore
+              bodyA.cell?.organism?.isPlayer !== this.organism?.isPlayer
+              ? // @ts-ignore
+                bodyA.cell
+              : undefined;
+
+          if (
+            enemyCell &&
+            !(enemyCell instanceof MouthCell) &&
+            !this.hitEnemy
+            // !this.hitEnemies.includes(enemyCell)
+          ) {
+            // this.hitEnemies.push(enemyCell);
+            this.hitEnemy = true;
+            this.currentAttackCoolDown = this.attackCoolDown;
+            enemyCell.health -= this.damage;
+          }
+        }
+      }
+    );
   }
 }

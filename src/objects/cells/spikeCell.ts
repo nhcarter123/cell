@@ -3,10 +3,9 @@ import { TSavedCell } from "../../context/saveData";
 import { Organism } from "../organism";
 import DegToRad = Phaser.Math.DegToRad;
 import { rotateVector } from "../../helpers/math";
-import { BodyType } from "matter";
+import { BodyType, Vector } from "matter";
 import { MASS, PHYSICS_DEFAULTS, RAD_3_OVER_2, SPACING } from "../../config";
 import { EImageKey } from "../../scenes/load";
-import MatterCollisionData = Phaser.Types.Physics.Matter.MatterCollisionData;
 
 export class SpikeCell extends Cell {
   private currentAttackCooldown: number;
@@ -18,11 +17,12 @@ export class SpikeCell extends Cell {
       offset,
       angleOffset,
       mass: MASS,
-      health: 5,
+      health: 12,
       imageKey: EImageKey.SpikeCell,
       isBody: false,
       isBone: true,
       mustPlacePerpendicular: true,
+      speed: 0.8,
       imageOffsetEditor: { x: 0.5, y: 0.75 },
       imageOffset: { x: 0.5, y: 0.7 },
       occupiedSpots: [
@@ -32,8 +32,8 @@ export class SpikeCell extends Cell {
     });
 
     this.currentAttackCooldown = 0;
-    this.attackCoolDown = 60;
-    this.damage = 1;
+    this.attackCoolDown = 120;
+    this.damage = 4;
   }
 
   update(attacking: boolean, matter?: Phaser.Physics.Matter.MatterPhysics) {
@@ -45,6 +45,7 @@ export class SpikeCell extends Cell {
   createBody(
     matter: Phaser.Physics.Matter.MatterPhysics,
     org: Organism,
+    startPosition: Vector,
     angle: number
   ): BodyType {
     const offset = rotateVector(
@@ -60,8 +61,8 @@ export class SpikeCell extends Cell {
     );
 
     return matter.bodies.trapezoid(
-      org.centerOfMass.x + (offset.x + imageOffset.x) * SPACING,
-      org.centerOfMass.y + (offset.y + imageOffset.y) * SPACING,
+      startPosition.x + (offset.x + imageOffset.x) * SPACING,
+      startPosition.y + (offset.y + imageOffset.y) * SPACING,
       24,
       84,
       1,
@@ -69,7 +70,10 @@ export class SpikeCell extends Cell {
         mass: this.mass,
         angle: DegToRad(this.angleOffset + angle),
         ...PHYSICS_DEFAULTS,
-        onCollideActiveCallback: ({ bodyA, bodyB }: MatterCollisionData) => {
+        onCollideActiveCallback: ({
+          bodyA,
+          bodyB,
+        }: Phaser.Types.Physics.Matter.MatterCollisionData) => {
           if (this.currentAttackCooldown < 0) {
             const enemyCell: Cell | undefined =
               // @ts-ignore
