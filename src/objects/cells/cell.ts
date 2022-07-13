@@ -7,6 +7,7 @@ import RadToDeg = Phaser.Math.RadToDeg;
 import { EImageKey } from "../../scenes/load";
 import { PHYSICS_DEFAULTS, RAD_3_OVER_2, RADIUS, SPACING } from "../../config";
 import DegToRad = Phaser.Math.DegToRad;
+import { MouthCell } from "./mouthCell";
 
 type TCellOverrides = Partial<
   Pick<
@@ -396,9 +397,17 @@ export class Cell {
     this.previousHealth = this.health;
   }
 
+  removeLinks(matter?: Phaser.Physics.Matter.MatterPhysics) {
+    if (matter) {
+      matter.world.removeConstraint(this.links.map((link) => link.link));
+      this.links = [];
+    }
+  }
+
   destroy(matter?: Phaser.Physics.Matter.MatterPhysics) {
     if (matter && this.obj) {
       matter.world.remove(this.obj.parent);
+      this.removeLinks(matter);
 
       if (this.boneId && this.organism) {
         this.organism.dirtyBones.push(this.boneId);

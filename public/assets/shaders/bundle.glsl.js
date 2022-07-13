@@ -73,8 +73,10 @@ void main(void) {
 name: ocean
 type: fragment
 author: Nathaniel Carter
+uniform.color: { "type": "3fv", "value": [0.0, 0.0, 0.0] }
 uniform.offset: { "type": "2fv", "value": [0.0, 0.0] }
 uniform.scale: { "type": "1f", "value": 1 }
+uniform.depth: { "type": "1f", "value": 1 }
 ---
 
 precision mediump float;
@@ -83,6 +85,8 @@ uniform float     time;
 uniform float     scale;
 uniform vec2      resolution;
 uniform vec2      offset[1];
+uniform vec3      color[1];
+uniform float     depth;
 
 float length2(vec2 p) { return dot(p, p); }
 
@@ -102,10 +106,10 @@ float worley(vec2 p) {
 }
 
 float fworley(vec2 p, vec2 o) {
-    const float depth1 = 75.0;
-    const float depth2 = 45.0;
-    const float depth3 = 20.0;
-    const float depth4 = 8.0;
+    float depth1 = 75.0 * depth;
+    float depth2 = 45.0 * depth;
+    float depth3 = 20.0 * depth;
+    float depth4 = 8.0 * depth;
 
     vec2 scaleOffset = 0.0000912 * vec2(resolution.x / scale, resolution.y / scale);
     vec2 offset1 = depth1 * scaleOffset;
@@ -115,7 +119,7 @@ float fworley(vec2 p, vec2 o) {
     // float aspectRatio = resolution.x / resolution.y;
     // float inverseAspectRation = resolution.y / resolution.x;
 
-    return sqrt(sqrt(sqrt(sqrt(
+    return sqrt(sqrt(sqrt(
         1.1 * // light
         sqrt(sqrt(worley(depth1 * p + o - offset1 + time * 3.5 / depth1))) // bottom layer // + time * -0.025
         * sqrt(sqrt(worley(depth2 * p + o - offset2 + time * 3.5 / depth2))) // layer 1
@@ -125,13 +129,15 @@ float fworley(vec2 p, vec2 o) {
         // worley(5.0 * p + o + time * 0.0525) * // light 2
         // sqrt(sqrt(worley(20.0 * p + 2.0 * o))) // light 1
 
-    ))));
+    )));
 }
 
 void main() {
 
     vec2 uv = (gl_FragCoord.xy / resolution.xy);
     float t = fworley(uv * resolution.xy / 5500.0 / scale, offset[0]);
-    //t *= exp(-length2(abs(0.0*uv - 1.0)));
-    gl_FragColor = vec4(0.5 * t * vec3(0.1, 1.5*t, 1.2*t), 1.0);
+
+    vec3 blend = color[0] * t;
+
+    gl_FragColor = vec4(blend, 1.0);
 }

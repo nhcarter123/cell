@@ -98,8 +98,22 @@ export default class Ocean extends Phaser.Scene {
   update(time: number, delta: number) {
     super.update(time, delta);
 
-    // console.log(this.cameras.main.scrollX);
+    const depth =
+      pointDist(0, 0, this.cameras.main.scrollX, this.cameras.main.scrollY) /
+      100;
+
     if (this.backgroundShader) {
+      const depthScale = 50;
+
+      this.backgroundShader.setUniform("color.value", [
+        Math.max(0.2 - depth / depthScale / 10, 0.03),
+        Math.max(1 - depth / depthScale / 4, 0.05),
+        Math.max(0.8 - depth / depthScale / 8, 0.14),
+      ]);
+      this.backgroundShader.setUniform(
+        "depth.value",
+        0.5 * Math.pow(depth, 0.19)
+      );
       this.backgroundShader.setUniform("scale.value", this.cameras.main.zoom);
       this.backgroundShader.setUniform("offset.value", [
         this.cameras.main.scrollX / BACKGROUND_DEPTH / config.resolutionScale,

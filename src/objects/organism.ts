@@ -58,6 +58,8 @@ export class Organism {
   private skin?: Phaser.GameObjects.Image;
   private debug?: Phaser.GameObjects.Graphics;
   private skinResolution: number;
+  private wiggleRate: number;
+  private wiggleStrength: number;
   public color: Phaser.Display.Color;
   public dirtyBones: string[];
 
@@ -81,6 +83,9 @@ export class Organism {
     this.speed = 1;
     this.id = nanoid();
     this.dirtyBones = [];
+    // todo add overrides
+    this.wiggleRate = 0;
+    this.wiggleStrength = 0;
   }
 
   create(
@@ -260,9 +265,8 @@ export class Organism {
   removeBones(matter: Phaser.Physics.Matter.MatterPhysics, cell: Cell) {
     if (cell.obj && this.dirtyBones.includes(cell.boneId || "")) {
       cell.boneId = undefined;
-      matter.world.removeConstraint(cell.links.map((link) => link.link));
+      cell.removeLinks(matter);
       matter.world.remove(cell.obj.parent);
-      cell.links = [];
     }
   }
 
@@ -349,7 +353,8 @@ export class Organism {
         // if (c.obj?.parent !== c.obj && cell.obj?.parent !== cell.obj) {
         if (
           (c.isBone && cell.isBone) ||
-          cell.links.some((link) => link.cell === c)
+          (c.links.some((link) => link.cell === cell) &&
+            cell.links.some((link) => link.cell === c))
         ) {
           //
         } else {
@@ -673,7 +678,9 @@ export class Organism {
               Math.min(Math.pow(diffToTarget, 2), 2500) *
               Math.sign(diffToTarget)) /
               (distToBrain + 2) +
-            Math.sin(time / 200) * 0.000016;
+            Math.sin((this.wiggleRate * time) / 300) *
+              0.000009 *
+              this.wiggleStrength;
 
           const ang = angleFromCenterToCell + 90;
 
